@@ -1,0 +1,28 @@
+# ignore entire data directory
+data/
+
+# ignore bam files
+*.bam
+*.bam.*
+
+# ignore R data files
+*.RData
+*.Rda
+*.rda
+
+# ignore vi swap files
+.*.sw?
+
+# libreoffice files
+.~lock.*odp#
+
+# misc files
+*~ # (Quanta ?)
+
+# ignore all files and directories resulting from running runSweave.sh
+*.tex
+*.toc
+*.aux
+*.log
+*.out
+cache/
