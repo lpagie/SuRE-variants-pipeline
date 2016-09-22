@@ -394,16 +394,12 @@ for BASE in ${BASEFILES}; do
   rm -rf ${PROCDIR}
   echo -e "finished trimming adapter in reverse reads\n\n"
 
-  # ls -l
-
   # remove all reads which are $MIN_READ_LENGTH basepairs or shorter
   ##################################################################
   echo "starting to filtered reads too short for aligning to genome"
   filter_read_length ${BASE}
   echo "finished filtered read on length"
   echo ""
-
-  # ls -l
 
   ### ALIGNMENT OF PAIRED_END READS, plus filtering on concordant reads and sorting on readID ######
   ##################################################################################################
@@ -426,8 +422,6 @@ for BASE in ${BASEFILES}; do
 ##      ${SAMTOOLS} view -b -f2 -u - -o - | \
 ##      ${SAMTOOLS} sort -n - -o ${BAM_SRT} -T ${BAM%.bam}_srt -@ ${NCORES} ) 2>> ${STATS}
   echo -e "alignment done\n"
-
-  ls -l
 
   ### CONVERT BAM FILE INTO BEDPE FILE ###########
   ################################################
@@ -643,7 +637,6 @@ BEGIN {
   # entire line, except readID, as value. read $INFO, look for key and add barcode
   # sequence $5) to array element
   INFO=${BASE}_forw_trimmed.info
-  ls -l
   ${GAWK} -F '\t' ' 
   FNR==NR { 
     a[$1]=substr($0, index($0,$2)); 
