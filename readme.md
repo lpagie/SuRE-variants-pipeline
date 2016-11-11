@@ -20,7 +20,7 @@ SuRE data is processed using 4 bash scripts. The scripts implement the entire da
 
 - **merge-iPCR-cDNA-plDNA.bash:** merge cDNA count data and iPCR bed-like file
 
-## Additional software
+## Required software
 The scripts use various software tools, some standard on most linux
 environments but most should be installed prior to using these scripts. A
 complete list is shown in the following table:
@@ -34,4 +34,48 @@ complete list is shown in the following table:
 | bowtie2       | 2.1.0                  |
 | samtools      | 1.2                    |
 | python        | 2.7.6                  |
+
+
+## cDNA-plDNA-count-BC.bash
+
+```
+DESCRIPTION:
+   This is a bash script (mostly gawk and cutadapt) to process raw fastq files containing
+   data from cDNA/plDNA samples. The barcodes are extracted from the reads and
+   counted. For exatrcting the barcodes the adapter sequence is aligned with
+   the read (using cutadapt) and the preceding part of the read is defined as
+   the barcode.\\
+   Barcodes with length != 20, or which contain N's are discarded. The
+   filtered barcodes and counts are written to stdout, sorted (alphabetically)
+   on barcode.
+USAGE/OPTIONS:
+     cDNA-plDNA-count-BC.bash [options] fastqfiles
+   required:
+     -o: output directory
+     -a: adapter sequence
+   optional:
+     -l: log-filename [stdout]
+     -n: number of cores used in parallel processes [10]
+INPUT:
+   cDNA/plDNA fastq files
+OUTPUT:
+   tabular txt files (one for each input file) with count and barcode-sequence
+```
+
+
+
+
+
+# Notes
+
+## Filename pattern
+
+Some scripts take fastq filenames as input. Different samples are named using
+these fastq filenames. The filenames are assumed to contain certain string
+patterns. If your filenames are not compatible you can either adjust the
+scripts or your filenames. This dependency on string patterns is in the
+scripts:
+
+- **cDNA-plDNA-count-BC.bash:** lines 144-149
+-  **iPCR-map-BC.bash:** lines 179-187
 
