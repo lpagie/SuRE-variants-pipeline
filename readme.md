@@ -10,7 +10,10 @@ highlight-style:tango
 
 # Overview of processing scripts
 
-SuRE data is processed using 4 bash scripts. The scripts implement the entire data processing pipeline for both iPCR data and cDNA data from plasmid library samples and RNA expression samples. The 4 scripts roughly perform the following functions:
+SuRE data is processed using 4 bash scripts. The scripts implement the entire
+data processing pipeline for both iPCR and plDNA/cDNA data from plasmid library
+samples and RNA expression samples. The 4 scripts roughly perform the following
+functions:
 
 - **cDNA-plDNA-count-BC.bash:** parse cDNA fastq files into count tables
 
@@ -158,4 +161,8 @@ scripts:
 
 - **cDNA-plDNA-count-BC.bash:** lines 144-149
 -  **iPCR-map-BC.bash:** lines 179-187
+
+## Available on Github
+
+The scripts are available on github: `git@github.com:lpagie/SuRE-dataProcessing-pipeline.git`, in branch *public*.
 
