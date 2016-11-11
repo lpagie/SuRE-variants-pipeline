@@ -113,7 +113,7 @@ OUTPUT:
    included.
 ```
 
-## imerge-iPCR-cDNA-plDNA.bash
+## merge-iPCR-cDNA-plDNA.bash
 
 ```
 DESCRIPTION:
@@ -128,7 +128,7 @@ DESCRIPTION:
    with corresponding counts.
    The ouput file is ordered along genomic position.
 USAGE/OPTIONS:
-     imerge-iPCR-cDNA-plDNA.bash [options] 
+     merge-iPCR-cDNA-plDNA.bash [options] 
    required:
      -s: sample meta file which has columns with fastq file names for all
          samples (iPCR, cDNA, and plDNA) and a column with (short) sample names.
