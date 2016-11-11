@@ -245,14 +245,6 @@ for (i=2; i <= n; i++) {
   for (i in samplenames)
     printf("\t%s", samplenames[i])
   printf("\n")
-  print "printing all pipes" > "/dev/stderr"
-
-  for (f in fnames) {
-  print "printing all pipes" > "/dev/stderr"
-    print " f = "f > "/dev/stderr"
-    print "fnames[f] = "fnames[f] > "/dev/stderr"
-print "pipe = "pipes[fnames[f]] > "/dev/stderr"
-}
 
   # read input from iPCR datafile; for every BC read from iPCR iterate over all
   # other input pipes and for each pipe extract all lines untill the BC read
@@ -270,7 +262,6 @@ print "pipe = "pipes[fnames[f]] > "/dev/stderr"
 
     # iterate over all open pipes
     for (i in fnames) {
-#       print " looping over pipes, now pipe: ", fnames[i] > "/dev/stderr"
       # initialize count for current sample to zero
       lineout[samplenames[i]] = 0
       # check whether pipe to current sample file is closed; skip to next sample in that case
@@ -307,14 +298,11 @@ print "pipe = "pipes[fnames[f]] > "/dev/stderr"
 
 	# process record read from sample pipe; compare sample barcode and iPCR barcode
 	split(line, fields)
-#	print "line en fields: ",line, fields[1], fields[2], BCipcr > "/dev/stderr"
         if (fields[2] == BCipcr) {
-#	  print "same" > "/dev/stderr"
 	  # sample barcode equal to iPCR barcode; update count for current sample
           lineout[samplenames[i]] = lineout[samplenames[i]] + fields[1]
 	}
         if (fields[2] > BCipcr) {
-#	  print "larger" > "/dev/stderr"
 	  # newly read sample barcode > iPCR barcode, therefor store sample barcode for checking with subsequent iPCR barcodes
           BCprev[i] = fields[2]
 	  CNTprev[i] = fields[1]
@@ -338,8 +326,8 @@ print "pipe = "pipes[fnames[f]] > "/dev/stderr"
   # remove barcode from intermediate output in column 1 (but leave first line intact)
   # cut -f 2- - | \
   ${GAWK} ' BEGIN {OFS="\t"} 
-        NR==1 {print; next} 
-	{ sub(/^\w+\s+/, "")} 1 ' |
+    NR==1 {print; next} 
+    { sub(/^\w+\s+/, "")} 1 ' | \
   # sort on chromosomal position but leave the header:
   ${GAWK} ' 
     NR==1 {
@@ -357,11 +345,9 @@ ${GAWK} '
 #   ie. the counts for all samples in all lines are summed
 
 function PROC_PREV_POS(     maxcnt, maxline, BCs, BCmax) {
-# function to ...
+  # function to process the previous collected lines which have the same position-label
   if (length(PREVLINE) == 1) {
     print PREVLINE[1]
-    # split(PREVLINE[1], w)
-    # print w[COLBC], w[COLBC] > BC2BC_FNAME
   }
   else {
     split(PREVLINE[1], outline)
@@ -395,7 +381,6 @@ BEGIN {
   COLCNT = 7
 
   POS_MULTI_BC_FNAME = "iPCR/pos_multi_BC.txt"
-  # BC2BC_FNAME        = "iPCR/BC2BC.txt"
 }
 
 NR == 1 { # read and print header from input

@@ -35,7 +35,7 @@ VERSION=0.0.1 # YYMMDD
 SCRIPTNAME=iPCR-merge-bedpe-Filter-BC-multi-pos.bash
 
 # EXTERNAL SOFTWARE
-GAWK=/usr/bin/gawk
+GAWK=gawk
 
 # GLOBAL VARIABLES
 NCORES=10
@@ -116,9 +116,6 @@ echo "=============="
 echo ""
 
 
-# check required subdirectories exist
-# if [ ! -d iPCR ]; then mkdir -p "iPCR"; echo "making directory \"iPCR\" for output"; fi
-# if [ ! -d output ]; then mkdir -p "output"; echo "making directory \"output\" for general output"; fi
 # check/make directory which will contain output file
 OUTDIR=`dirname ${OUTPUT}`
 echo "OUTDIR = ${OUTDIR}"
