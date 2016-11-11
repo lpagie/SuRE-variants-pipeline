@@ -40,11 +40,11 @@ complete list is shown in the following table:
 
 ```
 DESCRIPTION:
-   This is a bash script (mostly gawk and cutadapt) to process raw fastq files containing
-   data from cDNA/plDNA samples. The barcodes are extracted from the reads and
-   counted. For exatrcting the barcodes the adapter sequence is aligned with
-   the read (using cutadapt) and the preceding part of the read is defined as
-   the barcode.\\
+   This is a bash script (mostly gawk and cutadapt) to process raw fastq files
+   containing data from cDNA/plDNA samples. The barcodes are extracted from the
+   reads and counted. For exatrcting the barcodes the adapter sequence is
+   aligned with the read (using cutadapt) and the preceding part of the read is
+   defined as the barcode.
    Barcodes with length != 20, or which contain N's are discarded. The
    filtered barcodes and counts are written to stdout, sorted (alphabetically)
    on barcode.
@@ -104,21 +104,21 @@ USAGE/OPTIONS:
    optional:
      -l a logfilename [stdout]
      -n number of cores to use [10]
- INPUT:
+INPUT:
    raw iPCR bedpe file(s)
- OUTPUT:
+OUTPUT:
    tabular txt file with position, strand, alignment info, gDNA sequences, barcode.
    This output file is filtered for barcodes which occur at multiple
    positions. But positions which associate with multiple barcodes are still
    included.
- ```
+```
 
 ## imerge-iPCR-cDNA-plDNA.bash
 
 ```
 DESCRIPTION:
    Bash script (mostly awk) to merge data of iPCR, cDNA, and plDNA data from a
-   SuRE experiment into a single tabular text file
+   SuRE experiment into a single tabular text file.
    All input files are sorted on barcode, the iPCR input is still redundant,
    i.e. multiple barcodes may be associated with a singe position
    (SuRE-fragment). But the iPCR data is cleaned from barcodes associated with
@@ -130,19 +130,19 @@ DESCRIPTION:
 USAGE/OPTIONS:
      imerge-iPCR-cDNA-plDNA.bash [options] 
    required:
-   -s: sample meta file which has columns with fastq file names for all
-       samples (iPCR, cDNA, and plDNA) and a column with (short) sample names.
-   -i: name of iPCR bedpe file
-   -o name of output file
+     -s: sample meta file which has columns with fastq file names for all
+         samples (iPCR, cDNA, and plDNA) and a column with (short) sample names.
+     -i: name of iPCR bedpe file
+     -o name of output file
    optional:
-   -c: directory containing cDNA count-table file(s) [cDNA/count-tables]
-   -p: directory containing plDNA count-table file(s) [plDNA/count-tables]
-   -l: log-filename [stdout]
-   -n: number of cores used in parallel processes [10]
- INPUT:
+     -c: directory containing cDNA count-table file(s) [cDNA/count-tables]
+     -p: directory containing plDNA count-table file(s) [plDNA/count-tables]
+     -l: log-filename [stdout]
+     -n: number of cores used in parallel processes [10]
+INPUT:
    iPCR bedpe file; redundant, sorted on barcode
    cDNA/plDNA count-tables, sorted on barcode
- OUTPUT:
+OUTPUT:
    tabular txt file with position, strand, sample-counts, ordered on position
 ```
 
