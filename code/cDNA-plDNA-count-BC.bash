@@ -86,7 +86,7 @@ for ((i=0; i<${#FASTQ_FNAMES[@]}; i++));
 do
   D=`dirname "${FASTQ_FNAMES[i]}"`
   B=`basename "${FASTQ_FNAMES[i]}"`
-  FASTQ_FNAMES[i]="`cd \"$D\" 2>/dev/null && pwd || echo \"$D\"`/$B" #"`
+  FASTQ_FNAMES[i]="`cd \"$D\" 2>/dev/null && pwd || echo \"$D\"`/$B"
 done
 
 # CHECK VARIABLES/OPTIONS
