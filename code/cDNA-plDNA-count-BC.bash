@@ -19,6 +19,7 @@
 #   -o: output directory
 #   -a: adapter sequence
 #   optional:
+#   -b: basename [based on input file name]
 #   -l: log-filename [stdout]
 #   -n: number of cores used in parallel processes [10]
 #   fastq files are expected as last arguments on the commandline
@@ -39,6 +40,7 @@ VERSION=0.0.1 # YYMMDD
 GAWK=gawk
 # CUTADAPT=/home/NFS/users/l.pagie/vanSteensel/src/cutadapt-stable_1.2.1/bin//cutadapt
 CUTADAPT=cutadapt
+CUTADAPT=/home/NFS/users/l.pagie/python_virt_env_cutadapt/bin/cutadapt
 
 # GLOBAL VARIABLES
 NCORES=10
@@ -51,6 +53,7 @@ usage() {
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -a: adapter sequence to parse read sequences [required]"
+  echo >&2 "  -b: sets basename used for all output files [default: based on input filename]"
   echo >&2 "  -l: set name of logfile [default: stdout]"
   echo >&2 "  -n: number of cores used where possible [default: 10]"
   echo >&2 ""
@@ -66,6 +69,8 @@ while getopts "h?f:o:a:l:n:" opt; do
       ;;
     o)
       OUTDIR=$OPTARG;
+      # make path to OUTDIR absolute
+      OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
       ;;
     a)
       ADPTR_SEQ=$OPTARG;
