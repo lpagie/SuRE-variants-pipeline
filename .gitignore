@@ -1,5 +1,6 @@
 # ignore entire data directory
 data/
+test-run
 
 # ignore bam files
 *.bam
