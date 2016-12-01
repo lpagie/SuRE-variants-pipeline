@@ -1,6 +1,8 @@
 # ignore entire data directory
-data/
+data
 test-run
+cDNA-counts
+.snakemake
 
 # ignore bam files
 *.bam
