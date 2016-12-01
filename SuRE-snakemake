@@ -1,0 +1,34 @@
+import glob
+import os.path
+
+configfile: "SuRE-test-config.yaml"
+
+cDNA_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/cDNA-plDNA-count-BC.bash"
+ADPT_SEQ="CCTAGCTAACTATAACGGTCCTAAGGTAGCGAA"
+
+# all cDNA fastq files
+# first get all files in cDNA directory
+files=glob.glob(config["cDNA"]["FASTQ_DIR"] + "/*")
+# simplify to basename
+files=[os.path.basename(f) for f in files]
+# filter to get fastq files only (possible extensions = fastq|fq, possibly compressed with .gz|.bz2)
+myfilter= re.compile('(test.1000.000.*\.[fF](ast|AST)?[qQ](.(gz|bz2))?$)').search
+files=[ ( l ) for l in files for m in (myfilter(l),) if m]
+print(files)
+
+rule all:
+	input:
+		expand(config["cDNA"]["OUTDIR"]+"/{f}.done", f=files)
+	shell:
+		"wc -l {input}"
+
+rule cDNA_plDNA:
+	input:
+		config["cDNA"]["FASTQ_DIR"]+"/{f}"
+	output:
+		temp(touch(config["cDNA"]["OUTDIR"]+"/{f}.done"))
+	params:
+		basename="{f}"
+		# outdir=config["cDNA"]["OUTDIR"]
+	shell:
+		cDNA_script + " -l -b '{params.basename}' -o " + config["cDNA"]["OUTDIR"]  + " -a " + ADPT_SEQ + " {input}"

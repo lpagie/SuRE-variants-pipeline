@@ -1,0 +1,15 @@
+# cDNA_FASTQ_DIR: 
+#         "data/cDNA-fastq/"
+
+# global
+OUTDIR:
+  "SuRE-pipelineOutput"
+ADPT_SEQ: 
+  "CCTAGCTAACTATAACGGTCCTAAGGTAGCGAA"
+
+cDNA:
+  FASTQ_DIR:
+    "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/data/cDNA-fastq"
+  OUTDIR:
+    "cDNA-counts"
+
