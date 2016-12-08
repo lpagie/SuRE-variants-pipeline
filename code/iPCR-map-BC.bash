@@ -15,14 +15,15 @@
 # USAGE / INPUT / ARGUMENTS / OUTPUT
 # USAGE:
 #   required:
-#   - fastq files for input are given as final arguments 
-####   -f: directory containing fastq file(s)
+#   1 pair of fastq files for input are given as final arguments 
 #   -o: output directory
 #   optional:
-#   -f: forward adapter sequence
-#   -r: reverse adapter sequence
-#   -d: digestion site
-#   -l: log-filename [stdout]
+#   -f: forward adapter sequence [CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT]
+#   -r: reverse adapter sequence [CCAGTCGT]
+#   -d: digestion site [CATG]
+#   -l: write to logfile instead of stdout
+#   -b: basename [based on input file name]
+#   -c: if set; do not clean intermediate files
 #   -n: number of cores used in parallel processes (10)
 # INPUT:
 #   iPCR fastq files
@@ -41,9 +42,11 @@ VERSION=0.0.1 # YYMMDD
 # EXTERNAL SOFTWARE
 GAWK=/usr/bin/gawk
 BOWTIE2=bowtie2
-CUTADAPT=$HOME/vanSteensel/src/cutadapt-stable_1.2.1/bin/cutadapt
-CUTADAPT=cutadapt
+# CUTADAPT=$HOME/vanSteensel/src/cutadapt-stable_1.2.1/bin/cutadapt
+# CUTADAPT=cutadapt
+CUTADAPT=/home/NFS/users/l.pagie/python_virt_env_cutadapt/bin/cutadapt
 SAMTOOLS=$HOME/vanSteensel/bin/samtools
+PYTHON=$HOME/python_virt_env_cutadapt/bin/python
 
 # GLOBAL VARIABLES
 NCORES=10
@@ -55,28 +58,31 @@ ADPTR_FORW_SEQ="CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT"
 ADPTR_REV_SEQ="CCAGTCGT"
 RESTRICT_SITE="CATG"
 CLEAN=true;
+LOG="false"
 
 # PARSE OPTIONS
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: ${SCRIPTNAME} -ofrdlnc"
+  echo >&2 "usage: ${SCRIPTNAME} -o[frdlbnch]"
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -f: forward read adapter sequence [CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT]"
   echo >&2 "  -r: reverse read adapter sequence [CCAGTCGT]"
   echo >&2 "  -d: digestion site used for minimzing iPCR circle [CATG]"
-  echo >&2 "  -l: set name of logfile [default: stdout]"
+  echo >&2 "  -l: write messages to logfile (OUTDIR/BASENAME.log) instead of stdout"
+  echo >&2 "  -b: sets basename used for all output files [default: based on input filename]"
   echo >&2 "  -n: number of cores used where possible [default: 10]"
-  echo >&2 "  -c: clean up intermediate files [true]"
+  echo >&2 "  -c: do not clean up intermediate files [default: clean]"
+  echo >&2 "  -h: print this message"
   echo >&2 ""
   exit 1;
 }
 
-while getopts "h?f:o:r:d:l:n:c" opt; do
+while getopts "h?f:o:r:d:lb:n:c" opt; do
   case $opt in
     l)
-      LOG=$OPTARG;
+      LOG="true";
       ;;
     n)
       NCORES=$OPTARG;
@@ -93,8 +99,14 @@ while getopts "h?f:o:r:d:l:n:c" opt; do
     o)
       OUTDIR=$OPTARG;
       ;;
+    b)
+      BASENAME=$OPTARG;
+      ;;
     c)
       CLEAN=false;
+      ;;
+    h)
+      usage;
       ;;
     \?)
       echo "option not recognized: "$opt
@@ -104,26 +116,75 @@ while getopts "h?f:o:r:d:l:n:c" opt; do
 done
 shift $(( OPTIND - 1 ))
 
-# retrieve input fastq files from command line
-declare -a INPUTFILES=( "$@" );
-# make pathname of inputfiles absolute
-for (( i=0; i<${#INPUTFILES[@]}; i++ )); do
-  D=`dirname "${INPUTFILES[$i]}"`
-  B=`basename "${INPUTFILES[$i]}"`
-  DD="`cd $D 2>/dev/null && pwd || echo $D`"
-  INPUTFILES[$i]="${DD}/$B"
-done
-# exit if no filenames are given; print usage
-if [ ${#@} -eq 0 ]; then
-  echo -e >&2 "\nERROR: no fastq input files, aborting\n"
+# the remaining CLI arguments should be a pair of filenames which are the
+# forward and reverse reads fastq files
+# check we have exactly 2 remaining arguments
+if [ ! $# -eq 2 ]; then
+  echo -e "\nerror: too few, or too many, arguments left after options are parsed (should be 1 pair of fastq filenames).\nThe remaining args are:"
+  while test $# -gt 0; do
+    echo $1
+    shift
+  done
+  echo -e "Aborting\n\n"
   usage
 fi
 
+# retrieve input fastq files from command line
+declare -a FASTQ_FNAMES=( "$@" );
+
+# check; file exists, whether compressed (set CAT)
+# file exists
+abort_flag="false"
+for f in ${FASTQ_FNAMES[@]}; do
+  if [ ! -f ${f} ]; then
+    echo -e "error; fastq file (${f}) doesn't exist.\n" 
+    abort_flag=true
+  fi
+done
+if [ $abort_flag == 'true' ]; then
+  echo -e "Aborting\n\n"
+  usage
+  exit 1
+fi
+unset abort_flag
+# determine file extension of the first file (assuming both files are
+# compressed identically)
+f=${FASTQ_FNAMES[0]}
+extension="${f##*.}"
+# determine CAT
+case ${extension} in
+  gz)
+    CAT="gzip -cd ";
+    ;;
+  bz2)
+    CAT="bzip2 -cd ";
+    ;;
+  *)
+    CAT="cat ";
+    ;;
+esac
+
+unset extension
+unset f
+
+# Make name of fastq file absolute
+for (( i=0; i<2; i++ )); do
+  D=`dirname "${FASTQ_FNAMES[$i]}"`
+  B=`basename "${FASTQ_FNAMES[$i]}"`
+  DD="`cd $D 2>/dev/null && pwd || echo $D`"
+  FASTQ_FNAMES[$i]="$DD/$B"
+done
+
 # check all required options are set
 if [ -z ${OUTDIR+x} ]; then echo "option -o not set (directory for output files)"; usage; exit 1; fi
+if [ -z ${BASENAME+x} ]; then
+  # create BASENAME based on 1st input fastq filename remove ".fastq.*" (or ".fq.*") from filename
+  BASENAME=$(basename ${FASTQ_FNAMES[0]} | sed -e 's/.[fF]\(ast\|AST\)\?[qQ].*//')
+fi
 
 # define function log which writes (status lines) to stderr and (if logfile is given) to LOG
-if [ ! -z ${LOG+x} ]; then 
+if [ ${LOG} == "true" ]; then 
+  LOG="${OUTDIR}/${BASENAME}.log"
   exec 1>>${LOG}
 fi
 
@@ -132,7 +193,11 @@ fi
 ######################
 LINE="running "${SCRIPTNAME}" (version: "$VERSION")"
 SEPARATOR=$(head -c ${#LINE} </dev/zero | tr '\0' '=')
-echo $SEPARATOR; echo $LINE; echo $SEPARATOR
+echo $SEPARATOR; 
+echo $SEPARATOR
+echo $LINE; 
+echo $SEPARATOR
+echo $SEPARATOR
 echo "script context"
 echo "=============="
 starttime=$(date +%c)
@@ -140,6 +205,7 @@ echo "starting date/time = "${starttime}
 echo "User set variables:"
 echo "==================="
 echo "directory for output files=${OUTDIR}"
+echo "basename for output files=${BASENAME}"
 echo "adapter sequence=${ADPTR_SEQ}"
 echo "LOG=${LOG}"
 echo "NCORES=${NCORES}"
@@ -154,7 +220,7 @@ echo "CLEAN=${CLEAN}"
 echo ""
 echo "fastq files for input:"
 echo "================================="
-for f in $INPUTFILES; do echo $f; done
+for f in ${FASTQ_FNAMES[@]}; do echo $f; done
 echo ""
 # print some software version info
 echo "Used software:"
@@ -165,45 +231,33 @@ echo "gawk:"; echo "executable used: ${GAWK}"; ${GAWK} --version; echo "--------
 echo "cutadapt:"; echo "executable used: ${CUTADAPT}"; ${CUTADAPT} --version; echo "---------------";
 echo "bowtie2:"; echo "executable used: ${BOWTIE2}"; ${BOWTIE2} --version; echo "---------------";
 echo "samtools:"; echo "executable used: ${SAMTOOLS}"; ${SAMTOOLS} 2>&1 | head -3; echo "---------------";
-echo "python:"; echo "executable used: python"; ((python --version) 2>&1);
+echo "python:"; echo "executable used: ${PYTHON}"; ((${PYTHON} --version) 2>&1);
 echo "=============="
 echo ""
 
 # check required subdirectories exist
 if [ ! -d ${OUTDIR} ]; then mkdir -p ${OUTDIR}; echo "making directory \"${OUTDIR}\" for output"; echo ""; fi
-
-# the reads come in paired end format; we need a name for each sample
-# samplenames will be stored in $BASEFILES
-# fastq file names with forward/reverse reads will be in $FORWFILES/$REVFILES respectively
-## This code-section is based on specific filename patterns, adjust to your specific case
-BASEFILES=`for i in "${INPUTFILES[@]}"; do echo $( basename $i ) | \
-  ${GAWK} ' { STR=$1; sub(/_R?[12](_001)?.f.*q.gz$/,"",STR); print STR } '; done | uniq`;
-declare -A FORWFILES=();
-declare -A REVFILES=();
-  echo "ls :"
-  ls ${INPUTFILES[@]} | grep ".*.gz"
-for BASE in $BASEFILES; do
-  FORWFILES[$BASE]=`ls ${INPUTFILES[@]} | grep $BASE"_R\?1\(_001\)\?.f.*q.gz$" `
-  REVFILES[$BASE]=`ls ${INPUTFILES[@]} | grep $BASE"_R\?2\(_001\)\?.f.*q.gz$" `
-  ls ${INPUTFILES[@]}
-  echo "base = "${BASE}
-  echo "forw = "${FORWFILES[$BASE]}
-done
+# make path to OUTDIR absolute
+OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
 
 # setwd processing directory
 cd ${OUTDIR}
 
-echo "finished prepping for processing"
-echo "================================"
+echo -e "finished prepping for processing"
+echo -e "================================\n"
 
-echo "starting to loop over (paired end) fastq files" 
-echo "=============================================="
+echo "===================================="
+echo "===================================="
+echo "MAIN: starting to process fastq file" 
+echo "===================================="
+echo "===================================="
+echo ""
 
 function split_fastq {
   local FASTQ=$1
   # split fastq
   # first we need to figure out the number of lines per split file we need
-  local nline=`zcat ${FASTQ} | wc -l`
+  local nline=`${CAT} ${FASTQ} | wc -l`
   # divide by 4 to get number of reads in the fastq file
   local nread=$((nline/4))
   # divide by NCORES to get number of reads per split datafile
@@ -214,7 +268,7 @@ function split_fastq {
   # the number of lines in the split fastq files is nread*4
   nline=$((nread*4))
 
-  zcat ${FASTQ}  | \
+  ${CAT} ${FASTQ}  | \
     ${GAWK} -v "NL=${nline}" '
       BEGIN { CNT=1 } 
       NR%NL == 1 { 
@@ -246,6 +300,12 @@ function trim_reads {
   
   echo "trimming reads with adptr = ${ADPTR}, direction = ${DIR}"
 
+  # create tmp dir for splitting and processing
+  PROCDIR=`mktemp -d ./tmp_split_${BASENAME}.XXXXXXXXXX`
+  echo "tmpdir = ${PROCDIR}"
+  # and go there
+  cd ${PROCDIR}
+
   # the fastq file is split using awk (which turns out much faster than unix split)
   echo "splitting fastq file for parallel processing"
   split_fastq ${FASTQ}
@@ -257,42 +317,38 @@ function trim_reads {
   export RESTRICT_SITE
   export ADPTR
   export DIR
+  export BASENAME
 
   CMD="${CUTADAPT} -g ${ADPTR} -o {.}_${DIR}_trimmed.fastq --info-file={.}_${DIR}_trimmed.info -O4 {} > {.}_${DIR}_trimmed.stats;\
-    ${CUTADAPT} -a ${RESTRICT_SITE} -o {.}_${DIR}_trimmed_${RESTRICT_SITE}.fastq -O4 {.}_${DIR}_trimmed.fastq > {.}_${DIR}_trimmed_${RESTRICT_SITE}.stats"
+       ${CUTADAPT} -a ${RESTRICT_SITE} -o {.}_${DIR}_trimmed_${RESTRICT_SITE}.fastq -O4 {.}_${DIR}_trimmed.fastq > \
+       {.}_${DIR}_trimmed_${RESTRICT_SITE}.stats"
   echo "cutadapt command = ${CMD}"
   parallel -j ${NCORES} ${CMD} :::  split*fastq
   
   echo "Merging the split result files"
   # merge the fastq and stats files, generate the output files in the parent directory:
-  
-  cat *_${DIR}_trimmed.fastq > ../${BASE}_${DIR}_trimmed.fastq
-  cat *_${DIR}_trimmed.info > ../${BASE}_${DIR}_trimmed.info
-  cat *_${DIR}_trimmed.stats > ../${BASE}_${DIR}_trimmed.stats
-  cat *_${DIR}_trimmed_${RESTRICT_SITE}.fastq > ../${BASE}_${DIR}_trimmed_${RESTRICT_SITE}.fastq
-  cat *_${DIR}_trimmed_${RESTRICT_SITE}.stats > ../${BASE}_${DIR}_trimmed_${RESTRICT_SITE}.stats
+ 
+  cat *_${DIR}_trimmed.fastq > ${OUTDIR}/${BASENAME}_${DIR}_trimmed.fastq
+  cat *_${DIR}_trimmed.info > ${OUTDIR}/${BASENAME}_${DIR}_trimmed.info
+  cat *_${DIR}_trimmed.stats > ${OUTDIR}/${BASENAME}_${DIR}_trimmed.stats
+  cat *_${DIR}_trimmed_${RESTRICT_SITE}.fastq > ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.fastq
+  cat *_${DIR}_trimmed_${RESTRICT_SITE}.stats > ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.stats
   echo "Finished merging the split result files"
+
+  # go back to parent directory and delete the temporary processing directory
+  cd ../
+  rm -rf ${PROCDIR}
 }
 
 function filter_read_length {
-  local BASE=$1
-
   # remove all reads which are $MIN_READ_LENGTH basepairs or shorter
   ##################################################################
-  local FORW=${BASE}_forw_trimmed_${RESTRICT_SITE}.fastq
-  local REV=${BASE}_rev_trimmed_${RESTRICT_SITE}.fastq
-  local FORW_FLTR=${BASE}_forw_trimmed_${RESTRICT_SITE}.fastq.fltr
-  local REV_FLTR=${BASE}_rev_trimmed_${RESTRICT_SITE}.fastq.fltr
-  local INFO_FORW=${BASE}_forw_trimmed.info
-  local STATS=${BASE}.stats
-
-echo "in filter_length:"
-echo "FORW = $FORW"
-echo "REV = $REV"
-echo "FORW_FLTR = $FORW_FLTR"
-echo "REV_FLTR = $REV_FLTR"
-echo "INF_FW = $INFO_FORW"
-echo "STATS = $STATS"
+  local FORW="${OUTDIR}/${BASENAME}_forw_trimmed_${RESTRICT_SITE}.fastq"
+  local REV="${OUTDIR}/${BASENAME}_rev_trimmed_${RESTRICT_SITE}.fastq"
+  local FORW_FLTR="${OUTDIR}/${BASENAME}_forw_trimmed_${RESTRICT_SITE}.fastq.fltr"
+  local REV_FLTR="${OUTDIR}/${BASENAME}_rev_trimmed_${RESTRICT_SITE}.fastq.fltr"
+  local INFO_FORW="${OUTDIR}/${BASENAME}_forw_trimmed.info"
+  local STATS="${OUTDIR}/${BASENAME}.stats"
 
 ${GAWK} -v file1=${FORW}  -v file2=${REV} -v out1=${FORW_FLTR} -v out2=${REV_FLTR} -v info=${INFO_FORW} -v min_length=${MIN_READ_LENGTH} '
   BEGIN {
@@ -320,129 +376,101 @@ ${GAWK} -v file1=${FORW}  -v file2=${REV} -v out1=${FORW_FLTR} -v out2=${REV_FLT
 
 }
 
-for BASE in ${BASEFILES}; do 
-  echo "processing ${BASE} files"; echo ""
+#################################
+#######  MAIN  ##################
+#################################
 
-  ### FORWARD READS TRIMMING ######
-  #################################
-  FORW=${FORWFILES[$BASE]}
-  echo "forward reads file = ${FORW}"
+### FORWARD READS TRIMMING ######
+#################################
+# FORW=${FASTQ_FNAMES[0]}
+echo "forward reads file = ${FASTQ_FNAMES[0]}"
+# trim forw read
+echo "starting to trim adapter in forward reads; trim adapter from 5'" 
+echo "and trim all after digest restriction site (${RESTRICT_SITE}) site on 3'"
+echo ""
+trim_reads ${FASTQ_FNAMES[0]} "forw"
+echo -e "finished trimming adapter in forward reads\n\n"
 
-  # create tmp dir for splitting and processing
-  PROCDIR=`mktemp -d ./tmp_split_${BASE}.XXXXXXXXXX`
-  echo "tmpdir = ${PROCDIR}"
-  # and go there
-  cd ${PROCDIR}
+### REVERSE READS TRIMMING ######
+#################################
+# REV=${FASTQ_FNAMES[1]}
+echo "reverse reads file = ${FASTQ_FNAMES[1]}"
+# trim reverse read
+echo "starting to trim adapter in reverse reads; trim adapter from 5'" 
+echo "and trim all after digest restriction site (${RESTRICT_SITE}) site on 3'"
+trim_reads ${FASTQ_FNAMES[1]} "rev"
+echo -e "finished trimming adapter in reverse reads\n\n"
 
-  # trim forw read
-  echo "starting to trim adapter in forward reads; trim adapter from 5'" 
-  echo "and trim all after digest restriction site (${RESTRICT_SITE}) site on 3'"
-  echo ""
-  trim_reads ${FORW} "forw"
-  # go back to parent directory and delete the temporary processing directory
-  cd ../
-  rm -rf ${PROCDIR}
-  echo -e "finished trimming adapter in forward reads\n\n"
+# remove all reads which are $MIN_READ_LENGTH basepairs or shorter
+##################################################################
+echo "starting to filtered reads too short for aligning to genome"
+filter_read_length
+echo "finished filtered read on length"
+echo ""
 
-  ### REVERSE READS TRIMMING ######
-  #################################
-  REV=${REVFILES[$BASE]}
-  echo "reverse reads file = ${REV}"
+### ALIGNMENT OF PAIRED_END READS, plus filtering on concordant reads and sorting on readID ######
+##################################################################################################
+echo "starting alignment"
+FORW="${OUTDIR}/${BASENAME}_forw_trimmed_${RESTRICT_SITE}.fastq"
+REV="${OUTDIR}/${BASENAME}_rev_trimmed_${RESTRICT_SITE}.fastq"
+BAM="${OUTDIR}/${BASENAME}.bam"
+BAM_SRT="${BAM%.bam}_fltr_nameSrt.bam"
+STATS="${OUTDIR}/${BASENAME}.stats"
 
-  # create tmp dir for splitting and processing
-  PROCDIR=`mktemp -d ./tmp_split_${BASE}.XXXXXXXXXX`
-  echo "tmpdir = ${PROCDIR}"
-  # and go there
-  cd ${PROCDIR}
+CMD="(${BOWTIE2} -p ${NCORES} -x ${BOWTIE2_REFSEQ} -1 $FORW -2 $REV -X ${MAX_INSERT_LENGTH} | \
+  ${SAMTOOLS} view -b -f2 -u - -o - | \
+  ${SAMTOOLS} sort -n - -o ${BAM_SRT} -T ${BAM%.bam}_srt -@ ${NCORES} ) 2>> ${STATS}"
 
-  # trim reverse read
-  echo "starting to trim adapter in reverse reads; trim adapter from 5'" 
-  echo "and trim all after digest restriction site (${RESTRICT_SITE}) site on 3'"
-  trim_reads ${REV} "rev"
-  # go back to bparent directory and delete the temporary processing directory
-  cd ../
-  rm -rf ${PROCDIR}
-  echo -e "finished trimming adapter in reverse reads\n\n"
+echo "command to run bowtie = ${CMD}"
+eval $CMD
+echo -e "alignment done\n"
 
-  # remove all reads which are $MIN_READ_LENGTH basepairs or shorter
-  ##################################################################
-  echo "starting to filtered reads too short for aligning to genome"
-  filter_read_length ${BASE}
-  echo "finished filtered read on length"
-  echo ""
+### CONVERT BAM FILE INTO BEDPE FILE ###########
+################################################
+echo "starting conversion of bam file to bedpe file"
+## convert bam to bed file (in bedpe format)
+BEDPE=${BAM%.bam}.mate1_bedpe
 
-  ### ALIGNMENT OF PAIRED_END READS, plus filtering on concordant reads and sorting on readID ######
-  ##################################################################################################
-  echo "starting alignment"
-  FORW=${BASE}_forw_trimmed_${RESTRICT_SITE}.fastq
-  REV=${BASE}_rev_trimmed_${RESTRICT_SITE}.fastq
-  BAM=${BASE}.bam
-  BAM_SRT=${BAM%.bam}_fltr_nameSrt.bam
-  STATS=${BASE}.stats
-
-
-  CMD="(${BOWTIE2} -p ${NCORES} -x ${BOWTIE2_REFSEQ} -1 $FORW -2 $REV -X ${MAX_INSERT_LENGTH} | \
-    ${SAMTOOLS} view -b -f2 -u - -o - | \
-    ${SAMTOOLS} sort -n - -o ${BAM_SRT} -T ${BAM%.bam}_srt -@ ${NCORES} ) 2>> ${STATS}"
-
-  echo "command to run bowtie = ${CMD}"
-  eval $CMD
-  echo -e "alignment done\n"
-
-  ### CONVERT BAM FILE INTO BEDPE FILE ###########
-  ################################################
-  echo "starting conversion of bam file to bedpe file"
-  ## convert bam to bed file (in bedpe format)
-  BEDPE=${BAM%.bam}.mate1_bedpe
-
-  ${SAMTOOLS} view ${BAM_SRT} | \
-    ${GAWK} '
-  function RevComp( theBases ) {
+${SAMTOOLS} view ${BAM_SRT} | \
+  ${GAWK} '
+function RevComp( theBases ) {
   # from http://www.blossomassociates.net/molbio/revcomp.awk
   answer = "";
   l = length( theBases );
   for ( i = l; 0 < i; i-- ) {
     b = substr( theBases, i, 1 );
-
+  
     if ( "c" == b ) b = "g";
     else if ( "g" == b ) b = "c";
     else if ( "a" == b ) b = "t";
     else if ( "t" == b ) b = "a";
     else if ( "u" == b ) b = "a";
-
+  
     else if ( "C" == b ) b = "G";
     else if ( "G" == b ) b = "C";
     else if ( "A" == b ) b = "T";
     else if ( "T" == b ) b = "A";
     else if ( "U" == b ) b = "A";
-
+  
     else if ( "m" == b ) b = "k";
     else if ( "r" == b ) b = "y";
-    #   else if ( "w" == b ) b = "w";
-    #   else if ( "s" == b ) b = "s";
     else if ( "y" == b ) b = "r";
     else if ( "k" == b ) b = "m";
     else if ( "v" == b ) b = "b";
     else if ( "h" == b ) b = "d";
     else if ( "d" == b ) b = "h";
     else if ( "b" == b ) b = "v";
-    #   else if ( "x" == b ) b = "x";
     else if ( "n" == b ) b = "x";
-
+  
     else if ( "M" == b ) b = "K";
     else if ( "R" == b ) b = "Y";
-    #   else if ( "W" == b ) b = "W";
-    #   else if ( "S" == b ) b = "S";
     else if ( "Y" == b ) b = "R";
     else if ( "K" == b ) b = "M";
     else if ( "V" == b ) b = "B";
     else if ( "H" == b ) b = "D";
     else if ( "D" == b ) b = "H";
     else if ( "B" == b ) b = "V";
-    #   else if ( "X" == b ) b = "X";
     else if ( "N" == b ) b = "N";
-
-    #   else if ( "." == b ) b = ".";
 
     answer = answer b;
   }
@@ -463,7 +491,7 @@ function CIGAR2length( cigar ) {
     cigar=mod;
     mod=gensub("([MDINSHP=X])([MDINSHP=X])", "\\11\\2",1,cigar);
   }
-
+  
   # split CIGAR string into an array of the counts and an array of the CIGAR operators
   split(cigar, counts, /[MDINSHP=X]+/);
   split(cigar, ops, /[[:digit:]]+/);
@@ -495,71 +523,71 @@ BEGIN {
   if (! and (flag_1, flag_firstInPair))
     print("The first read is not first in pair!!!!\tFLAG = "flag_1", ("flag_firstInPair")");
 
-  # check this read pair is a concordant pair, otherwise skip the entire pair
-  if (! and(flag_1, flag_properPair) ) {
-    # if we read a discordant read-pair skip the entire pair (ie also read next read and then go the next pair)
+    # check this read pair is a concordant pair, otherwise skip the entire pair
+    if (! and(flag_1, flag_properPair) ) {
+      # if we read a discordant read-pair skip the entire pair (ie also read next read and then go the next pair)
+      getline;
+      next;
+    }
+    # store alignment data of first read in pair
+    read[1, "MAPQ"]  = $5;
+    read[1, "SEQ"]   = $10;
+    read[1, "START"] = $4;
+    read[1, "FLAG"]  = $2;
+    read[1, "CIGAR"] = $6;
+    read[1, "RNAME"] = $3;
+    read[1, "ID"]    = $1;
+    # get MD field from optional fields
+    read[1, "MD"]    = "";
+    for (i=12; i<NF; i++) {
+      if ($i ~ /MD:Z:/) {
+	read[1, "MD"]=$i;
+	break;
+      }
+    }
+    # get optional XS:i: field from optional fields
+    read[1, "XS"]    = "F";
+    for (i=12; i<NF; i++) {
+      if ($i ~ /XS:i:/) {
+	read[1, "XS"]="T";
+	break;
+      }
+    }
+    # compute end position on genome
+    read[1, "END"] = read[1,"START"] - 1 + CIGAR2length(read[1, "CIGAR"])
+
+    # read second read in pair and parse data
     getline;
-    next;
-  }
-  # store alignment data of first read in pair
-  read[1, "MAPQ"]  = $5;
-  read[1, "SEQ"]   = $10;
-  read[1, "START"] = $4;
-  read[1, "FLAG"]  = $2;
-  read[1, "CIGAR"] = $6;
-  read[1, "RNAME"] = $3;
-  read[1, "ID"]    = $1;
-  # get MD field from optional fields
-  read[1, "MD"]    = "";
-  for (i=12; i<NF; i++) {
-    if ($i ~ /MD:Z:/) {
-      read[1, "MD"]=$i;
-      break;
+    read[2, "MAPQ"]  = $5;
+    read[2, "SEQ"]   = $10;
+    read[2, "START"] = $4;
+    read[2, "FLAG"]  = $2;
+    read[2, "CIGAR"] = $6;
+    # get MD field from optional fields
+    read[2, "MD"]    = "";
+    for (i=12; i<NF; i++) {
+      if ($i ~ /MD:Z:/) {
+	read[2, "MD"]=$i;
+	break;
+      }
     }
-  }
-  # get optional XS:i: field from optional fields
-  read[1, "XS"]    = "F";
-  for (i=12; i<NF; i++) {
-    if ($i ~ /XS:i:/) {
-      read[1, "XS"]="T";
-      break;
+    # get optional XS:i: field from optional fields
+    read[2, "XS"]    = "F";
+    for (i=12; i<NF; i++) {
+      if ($i ~ /XS:i:/) {
+	read[2, "XS"]="T";
+	break;
+      }
     }
-  }
-  # compute end position on genome
-  read[1, "END"] = read[1,"START"] - 1 + CIGAR2length(read[1, "CIGAR"])
+    # compute end position on genome
+    read[2, "END"] = read[2,"START"] - 1 + CIGAR2length(read[2, "CIGAR"])
 
-  # read second read in pair and parse data
-  getline;
-  read[2, "MAPQ"]  = $5;
-  read[2, "SEQ"]   = $10;
-  read[2, "START"] = $4;
-  read[2, "FLAG"]  = $2;
-  read[2, "CIGAR"] = $6;
-  # get MD field from optional fields
-  read[2, "MD"]    = "";
-  for (i=12; i<NF; i++) {
-    if ($i ~ /MD:Z:/) {
-      read[2, "MD"]=$i;
-      break;
+    # is the fragment on the forward or on the reverse strand
+    if ( and(read[1, "FLAG"], flag_readReverseStrand) ) {
+      strand="-";
+      # read on reverse strand; reverse-complement the sequence
+      read[1, "SEQ"]=RevComp(read[1, "SEQ"]);
     }
-  }
-  # get optional XS:i: field from optional fields
-  read[2, "XS"]    = "F";
-  for (i=12; i<NF; i++) {
-    if ($i ~ /XS:i:/) {
-      read[2, "XS"]="T";
-      break;
-    }
-  }
-  # compute end position on genome
-  read[2, "END"] = read[2,"START"] - 1 + CIGAR2length(read[2, "CIGAR"])
-
-  # is the fragment on the forward or on the reverse strand
-  if ( and(read[1, "FLAG"], flag_readReverseStrand) ) {
-    strand="-";
-    # read on reverse strand; reverse-complement the sequence
-    read[1, "SEQ"]=RevComp(read[1, "SEQ"]);
-  }
   else {
     strand="+";
     # read on reverse strand; reverse-complement the sequence
@@ -570,113 +598,136 @@ BEGIN {
   if (strand == "+") {
     first_read=1;
   } else {
-    first_read=2;
-  }
-  last_read=3-first_read;
+  first_read=2;
+}
+last_read=3-first_read;
 
-  # print the bedpe output, including the extra data, in the following format:
-  # readID seqname start end strand end.2 start.2 MAPQ.1 MAPQ.2 MD.1 MD.2 SEQ.1 SEQ.2
-  print( read[1, "ID"],
-         read[1, "RNAME"],
-	 read[first_read, "START"],
-	 read[last_read, "END"],
-	 strand,
-	 read[first_read, "END"],
-	 read[last_read, "START"],
-	 read[first_read, "MAPQ"],
-	 read[last_read, "MAPQ"],
-	 read[first_read, "MD"],
-	 read[last_read, "MD"],
-	 read[first_read, "XS"],
-	 read[last_read, "XS"],
-	 read[first_read, "SEQ"],
-	 read[last_read, "SEQ"])
+# print the bedpe output, including the extra data, in the following format:
+# readID seqname start end strand end.2 start.2 MAPQ.1 MAPQ.2 MD.1 MD.2 SEQ.1 SEQ.2
+print( read[1, "ID"],
+read[1, "RNAME"],
+read[first_read, "START"],
+read[last_read, "END"],
+strand,
+read[first_read, "END"],
+read[last_read, "START"],
+read[first_read, "MAPQ"],
+read[last_read, "MAPQ"],
+read[first_read, "MD"],
+read[last_read, "MD"],
+read[first_read, "XS"],
+read[last_read, "XS"],
+read[first_read, "SEQ"],
+read[last_read, "SEQ"])
 }
 ' > ${BEDPE}
 
-  ## add barcode sequence from INFO file to BEDPE file
-  # $INFO is the info-file created while trimming the forward read by
-  # cutadapt (ie very first step)
-  mv ${BEDPE} ${BEDPE}.tmp
-  # merge barcodes from $INFO into $BEDPE using awk
-  # (store readID from column-5 from $BEDPE as key in array 'a' with
-  # entire line, except readID, as value. read $INFO, look for key and add barcode
-  # sequence $5) to array element
-  INFO=${BASE}_forw_trimmed.info
-  ${GAWK} -F '\t' ' 
-  FNR==NR { 
-    a[$1]=substr($0, index($0,$2)); 
+## add barcode sequence from INFO file to BEDPE file
+# $INFO is the info-file created while trimming the forward read by
+# cutadapt (ie very first step)
+mv ${BEDPE} ${BEDPE}.tmp
+# merge barcodes from $INFO into $BEDPE using awk
+# (store readID from column-5 from $BEDPE as key in array 'a' with
+# entire line, except readID, as value. read $INFO, look for key and add barcode
+# sequence $5) to array element
+INFO="${OUTDIR}/${BASENAME}_forw_trimmed.info"
+# info file may contain reads for which no adapter sequence was found: discard
+# those reads from the info file prior to adding the barcodes into the bedpe
+# file
+
+# echo ${INFO}
+# echo ${BEDPE}.tmp
+# ls -lh
+
+${GAWK} -F '\t' ' 
+BEGIN {
+  incl=0;
+  excl=0;
+}
+FNR==NR{
+# print FILENAME, ARGV[1], ARGV[2] > "/dev/stderr"
+  if (FILENAME != ARGV[1]) {exit} # if 1st input file is empty, abort
+  a[$1]=substr($0, index($0,$2)); 
+  next
+}
+{ 
+  # LP140424; trim readIDs differently for NKI formatted readIDs or BGI
+  # formatted readIDs
+  sub(/\s.*$/,"",$1); # trim readID for NKI format
+  sub(/\/1$/,"",$1); # trim readID for bgi format
+  # end LP140424
+
+  if ( $2 == "-1" ) {
+    excl++
+    delete a[$1]
     next
   }
-  { 
-    # LP140424; trim readIDs differently for NKI formatted readIDs or BGI
-    # formatted readIDs
-    sub(/\s.*$/,"",$1); # trim readID for NKI format
-    sub(/\/1$/,"",$1); # trim readID for bgi format
-    # end LP140424
-  
-    if ( $1 in a ) {
-      BC = $5
-      len  = length(BC)
-      BClen[len]++
-      hasN = BC~/N/
-      NNN[hasN]++
-      if (len==20 && !hasN ) {
-	incl++
-	a[$1]=a[$1] FS BC;
-      }
-      else {
-	excl++
-	delete a[$1]
-      }
+  if ($1 in a) {
+    BC = $5
+    len  = length(BC)
+    BClen[len]++
+    hasN = BC~/N/
+    NNN[hasN]++
+    if (len==20 && !hasN ) {
+      incl++
+      a[$1]=a[$1] FS BC;
+    }
+    else {
+      excl++
+      delete a[$1]
     }
   }
-  END { 
-    for (key in a) print a[key];
-    print "included = "incl", excl = "excl > "/dev/stderr"
-
-  } ' ${BEDPE}.tmp ${INFO} | \
-  # sort resulting bedpe file on seqname and start (latter numeric
-  # sort)
-  sort -S 50% --parallel=${NCORES} -k1,1 -k2,2n | \
-  # remove duplicates and add a count column
-  uniq -c |\
-  # reorder columns: move count to 7th column
-  # and write to $BEDPE the following columns:
-  # chr start end length strand barcode count internal-end internal-start MAPQ MD1 MD2 XS1 XS2 SEQ1 SEQ2
-  ${GAWK} ' 
-  BEGIN{ 
-    OFS="\t";
-    print("seqname","start","end","length","strand","barcode","count","end.intr","start.intr","MAPQ","MD.1","MD.2","alt.1","alt.2","seq.1","seq.2");
-  } 
-  { 
-    print($2,$3,$4,$4-$3+1,$5,$16,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15)
-  } ' > ${BEDPE}
-  echo "conversion bam to bedpe done"
-
-  
-  # clean or compress text files
-  ##############################
-  if $CLEAN; then
-    rm -f ${FORW_FLTR} ${REV_FLTR} *fastq *bam *bai *info *.tmp
-  else
-    parallel -j ${NCORES} gzip :::  ${FORW_FLTR} ${REV_FLTR} *fastq *info *.tmp
-  fi
-  # compress bedpe file
-  parallel -j ${NCORES} gzip ::: *bedpe
-
-  echo "finished processing ${BASE} files"
-  date 
-
-done
+}
+END {
+# print FNR, NR, FILENAME > "/dev/stderr"
+  if (FNR == NR) {print "2nd file empty" > "/dev/stderr"; exit} # the 2nd input file is empty; abort
+  for (key in a) print a[key];
+  print "while filtering for proper barcodes: included = "incl", discarded = "excl > "/dev/stderr"
+} ' ${BEDPE}.tmp ${INFO} | \
+# sort resulting bedpe file on seqname and start (latter numeric
+# sort)
+sort -S 50% --parallel=${NCORES} -k1,1 -k2,2n | \
+# remove duplicates and add a count column
+uniq -c |\
+# reorder columns: move count to 7th column
+# and write to $BEDPE the following columns:
+# chr start end length strand barcode count internal-end internal-start MAPQ MD1 MD2 XS1 XS2 SEQ1 SEQ2
+${GAWK} ' 
+BEGIN{ 
+  OFS="\t";
+  print("seqname","start","end","length","strand","barcode","count","end.intr","start.intr","MAPQ","MD.1","MD.2","alt.1","alt.2","seq.1","seq.2");
+} 
+{ 
+  print($2,$3,$4,$4-$3+1,$5,$16,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15)
+} ' > ${BEDPE}
+echo "conversion bam to bedpe done"
 
 
+# clean or compress text files
+##############################
+if $CLEAN; then
+  rm -f ${FORW_FLTR} ${REV_FLTR} *fastq *bam *bai *info *.tmp
+else
+  parallel -j ${NCORES} gzip :::  ${FORW_FLTR} ${REV_FLTR} *fastq *info *.tmp
+fi
+# compress bedpe file
+parallel -j ${NCORES} gzip ::: *bedpe
 
+echo "finished processing ${BASENAME} files"
+
+
+
+##############################
 ########## DONE ##############
+##############################
 LINE="finished "${SCRIPTNAME}
 SEPARATOR=$(head -c ${#LINE} </dev/zero | tr '\0' '=')
-echo $SEPARATOR; echo $LINE; echo $SEPARATOR
+echo $SEPARATOR; 
+echo $SEPARATOR; 
+echo $LINE; 
+echo $SEPARATOR
+echo $SEPARATOR; 
 endtime=$(date +%c)
 echo "end date/time = "${endtime}
-echo "==================================="
-echo ""
+echo $SEPARATOR; 
+echo $SEPARATOR; 
