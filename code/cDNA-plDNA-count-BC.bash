@@ -20,7 +20,7 @@
 #   -a: adapter sequence
 #   optional:
 #   -b: basename [based on input file name]
-#   -l: log-filename [stdout]
+#   -l: write to logfile instead of stdout
 #   fastq files are expected as last arguments on the commandline
 # INPUT:
 #   cDNA/plDNA fastq files
@@ -49,13 +49,14 @@ LOG="false"
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: ${SCRIPTNAME} -oa[lb] fastq-filename"
+  echo >&2 "usage: ${SCRIPTNAME} -oa[lbh] fastq-filename"
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -a: adapter sequence to parse read sequences [required]"
   echo >&2 "  -b: sets basename used for all output files [default: based on input filename]"
-  echo >&2 "  -l: set name of logfile [default: stdout]"
+  echo >&2 "  -l: write messages to logfile (OUTDIR/BASENAME.log) instead of stdout"
   echo >&2 "  fastq-filename: final argument; single fastq filename (ending with fastq|fq, and optionally compressed with gz/bz2)"
+  echo >&2 "  -h: print this message"
   echo >&2 ""
   exit 1;
 }
@@ -66,14 +67,15 @@ while getopts "h?b:o:a:ln:" opt; do
       ;;
     o)
       OUTDIR=$OPTARG;
-      # make path to OUTDIR absolute
-      OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
       ;;
     a)
       ADPTR_SEQ=$OPTARG;
       ;;
     b)
       BASENAME=$OPTARG;
+      ;;
+    h)
+      usage;
       ;;
     \?)
       echo "option not recognized: "$opt
@@ -130,6 +132,8 @@ if [ -z ${OUTDIR+x} ]; then echo "option -o not set (directory for output files)
 if [ -z ${ADPTR_SEQ+x} ]; then echo "option -a not set (adapter sequence for parsing reads)"; usage; exit 1; fi
 # check required subdirectories exist
 if [ ! -d ${OUTDIR} ]; then mkdir -p ${OUTDIR}; echo "making directory \"${OUTDIR}\" for output"; fi
+# make path to OUTDIR absolute
+OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
 # check, or create if necessary, BASENAME
 if [ -z ${BASENAME+x} ]; then 
   # create BASENAME based on input fastq filename remove ".fastq.*" (or ".fq.*") from filename
@@ -156,6 +160,7 @@ echo "starting work directory = "`pwd`
 echo "User set variables:"
 echo "==================="
 echo "directory for output files=${OUTDIR}"
+echo "basename for output files=${BASENAME}"
 echo "adapter sequence=${ADPTR_SEQ}"
 echo "LOG=${LOG}"
 echo ""
