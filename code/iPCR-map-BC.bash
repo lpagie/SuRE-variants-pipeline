@@ -32,12 +32,13 @@
 
 # VERSIONS:
 #   -160322: initial version, VERSION set to 0.0.1
+#   -161213: adapted to snakemake, VERSION set to 0.0.2
 
 # TODO
 #   - parameterize filter criteria (min MAPQ score, BC length, etc)
 
 SCRIPTNAME=iPCR-map-BC_160322.bash
-VERSION=0.0.1 # YYMMDD
+VERSION=0.0.2 # YYMMDD
 
 # EXTERNAL SOFTWARE
 GAWK=/usr/bin/gawk
