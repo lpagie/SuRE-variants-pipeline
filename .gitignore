@@ -3,6 +3,7 @@ data
 test-run
 cDNA-counts
 .snakemake
+SuRE-pipelineOutput
 
 # ignore bam files
 *.bam
