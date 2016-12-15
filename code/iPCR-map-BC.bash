@@ -65,7 +65,7 @@ LOG="false"
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: ${SCRIPTNAME} -o[frdlbnch]"
+  echo >&2 "usage: ${SCRIPTNAME} -o[frdlbnch] forw-reads.fastq[.gz/bz2] rev-reads.fastq[.gz/.bz2]"
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -f: forward read adapter sequence [CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT]"
@@ -164,7 +164,6 @@ case ${extension} in
     CAT="cat ";
     ;;
 esac
-
 unset extension
 unset f
 
@@ -183,7 +182,9 @@ if [ -z ${BASENAME+x} ]; then
   BASENAME=$(basename ${FASTQ_FNAMES[0]} | sed -e 's/.[fF]\(ast\|AST\)\?[qQ].*//')
 fi
 
-# define function log which writes (status lines) to stderr and (if logfile is given) to LOG
+######################################
+# write stdout to stdout or a log file
+######################################
 if [ ${LOG} == "true" ]; then 
   LOG="${OUTDIR}/${BASENAME}.log"
   exec 1>>${LOG}
@@ -430,7 +431,7 @@ echo -e "alignment done\n"
 ################################################
 echo "starting conversion of bam file to bedpe file"
 ## convert bam to bed file (in bedpe format)
-BEDPE=${BAM%.bam}.mate1_bedpe
+BEDPE=${BAM%.bam}.bedpe
 
 ${SAMTOOLS} view ${BAM_SRT} | \
   ${GAWK} '
