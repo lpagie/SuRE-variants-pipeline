@@ -11,12 +11,7 @@ cDNA:
   FASTQ_DIR:
     "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/data/cDNA-fastq"
   OUTDIR:
-    "cDNA-counts"
-  FASTQ_FILES:
-    - test.1000.0001.fastq
-    - test.1000.0002.fastq
-    - test.1000.0003.fastq
-    - test.1000.0004.fastq
+    "cDNA"
   SAMPLES:
     K562_B1_T1: 
       - test.1000.0001.fastq
@@ -35,15 +30,21 @@ cDNA:
     MCF7_B2_T2: 
       - test.1000.0008.fastq
 
+plDNA:
+  FASTQ_DIR:
+  OUTDIR:
+    "plDNA"
+  SAMPLES:
+
 iPCR:
   FASTQ_DIR:
     "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/data/iPCR-fastq"
   OUTDIR:
-    "iPCR-map"
+    "iPCR"
   SAMPLES:
     iPCR1: 
-      - test-R1-00.fq
-      - test-R2-00.fq
-    iPCR2: 
-      - test-R1-00.fq.gz
-      - test-R2-00.fq.gz
+      - test-10000-R1.fastq
+      - test-10000-R2.fastq
+        #    iPCR2: 
+        #      - test-R1-00.fq.gz
+        #      - test-R2-00.fq.gz
