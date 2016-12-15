@@ -29,7 +29,7 @@
 
 # VERSIONS:
 #   -160322: initial version, VERSION set to 0.0.1
-#   -161129: VERSION set to 0.0.2; changed from multi fastq input to single fastq input
+#   -161129: VERSION set to 0.0.2; changed from multi fastq input to single fastq input; to be used in snakemake
 
 
 SCRIPTNAME=cDNA-plDNA-count-BC_160322.bash
@@ -140,8 +140,9 @@ if [ -z ${BASENAME+x} ]; then
   BASENAME=$(basename $FASTQ_FNAME | sed -e 's/.[fF]\(ast\|AST\)\?[qQ].*//')
 fi
 
-# LOG FUNCTION
-# define function log which writes (status lines) to stderr and (if logfile is given) to LOG
+######################################
+# write stdout to stdout or a log file
+######################################
 if [ ${LOG} == "true" ]; then 
   LOG="${OUTDIR}/${BASENAME}.log"
   exec 1>>${LOG}
