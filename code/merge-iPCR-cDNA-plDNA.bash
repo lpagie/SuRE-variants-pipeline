@@ -17,16 +17,14 @@
 #
 # USAGE / INPUT / ARGUMENTS / OUTPUT
 # USAGE:
+#   merge-iPCR-cDNA-plDNA.bash -i iPCR-input -o output-filename -[ln] cDNA-input-files plDNA-input-files
 #   required:
-#   -s: sample meta file which has columns with fastq file names for all
-#       samples (iPCR, cDNA, and plDNA) and a column with (short) sample names. 
-#   -i: name of iPCR bedpe file
-#   -o name of output file
+#     -i: name of iPCR bedpe file
+#     -o: output directory
 #   optional:
-#   -c: directory containing cDNA count-table file(s) [cDNA/count-tables]
-#   -p: directory containing plDNA count-table file(s) [plDNA/count-tables]
-#   -l: log-filename [stdout]
-#   -n: number of cores used in parallel processes (10)
+#     -l: log-filename [stdout]
+#     -n: number of cores used in parallel processes (10)
+#     -h: print usage
 # INPUT:
 #   iPCR bedpe file; redundant, sorted on barcode
 #   cDNA/plDNA count-tables, sorted on barcode
@@ -35,11 +33,12 @@
 
 # VERSIONS:
 #   -160318: initial version, VERSION set to 0.0.1
+#   -161214: adapted to be used with snakemake, VERSION set to 0.0.2
 
 # TODO
 # merge counts if sample names for groups of identical sample names (ie PL)
 
-VERSION=0.0.1 # YYMMDD
+VERSION=0.0.2 # YYMMDD
 SCRIPTNAME=merge-iPCR-cDNA-plDNA.bash
 
 # EXTERNAL SOFTWARE
@@ -47,27 +46,26 @@ GAWK=/usr/bin/gawk
 
 # GLOBAL VARIABLES
 NCORES=10
-PLDNA_DIR=plDNA/count-tables/
-CDNA_DIR=cDNA/count-tables/
+LOG="false"
+# PLDNA_DIR=plDNA/count-tables/
+# CDNA_DIR=cDNA/count-tables/
 
 # PARSE OPTIONS
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: SCRIPTNAME -sicplno"
+  echo >&2 "usage: SCRIPTNAME -io[lnh] cDNA-input-files plDNA-input-files"
   echo >&2 "OPTIONS:"
-  echo >&2 "  -s: sample meta file [required]"
-  echo >&2 "  -o: output file [required]"
+  echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -i: iPCR bedpe filename [required]"
-  echo >&2 "  -p: directory with plDNA count-table file(s) [default: plDNA/count-tables/]"
-  echo >&2 "  -c: directory with cDNA count-table file(s) [default: cDNA/count-tables/]"
   echo >&2 "  -l: set name of logfile [default: stdout]"
   echo >&2 "  -n: number of cores used where possible [default: 10]"
+  echo >&2 "  -h: print this message"
   echo >&2 ""
   exit 1;
 }
 
-while getopts "h?s:o:i:p:c:l:n:" opt; do
+while getopts "h?s:o:i:l:n:" opt; do
   case $opt in
     l)
       LOG=$OPTARG;
@@ -75,21 +73,15 @@ while getopts "h?s:o:i:p:c:l:n:" opt; do
     n)
       NCORES=$OPTARG;
       ;;
-    s)
-      SAMPLES=$OPTARG;
-      ;;
     i)
       IPCR_FNAME=$OPTARG;
       ;;
-    p)
-      PLDNA_DIR=$OPTARG;
-      ;;
-    c)
-      CDNA_DIR=$OPTARG;
-      ;;
     o)
-      OUTPUT=$OPTARG;
+      OUTDIR=$OPTARG;
       ;;
+    h)
+      # execute next code block
+      ;&
     \?)
       usage
       ;;
@@ -97,13 +89,40 @@ while getopts "h?s:o:i:p:c:l:n:" opt; do
 done
 shift $(( OPTIND - 1 ))
 
-# check all required options are set
-if [ -z ${SAMPLES+x} ]; then echo "option -s not set (sample meta file)"; usage; exit 1; fi
-if [ -z ${IPCR_FNAME+x} ]; then echo "option -i not set (iPCR bedpe filename)"; usage; exit 1; fi
-if [ -z ${OUTPUT+x} ]; then echo "option -o not set (output filename)"; usage; exit 1; fi
+# remaining args are cDNA/plDNA inputfiles
+# loop through remaining args, from filename paths extract data type (cDNA/plDNA) and sample name
+declare -A FNAMES
+declare -a SAMPLES
+for f in $*; do
+  echo "arg=${f}"
+  sample=$(basename $(dirname "${f}"))
+  type=$(basename $(dirname $(dirname "${f}")))
+  echo "sample=${sample}"
+  echo "type=${type}"
+  # make filename path absolute
+  D=`dirname "${f}"`
+  B=`basename "${f}"`
+  DD="`cd $D 2>/dev/null && pwd || echo $D`"
+  f="$DD/$B"
+  SAMPLES+=("${sample}")
+  FNAMES["${sample}"]="${f}"
+done
 
-# define function log which writes (status lines) to stderr and (if logfile is given) to LOG
-if [ ! -z ${LOG+x} ]; then 
+# check all required options are set
+if [ -z ${IPCR_FNAME+x} ]; then echo "option -i not set (iPCR bedpe filename)"; usage; exit 1; fi
+if [ -z ${OUTDIR+x} ]; then echo "option -o not set (directory for output files)"; usage; exit 1; fi
+# check required subdirectories exist
+if [ ! -d ${OUTDIR} ]; then mkdir -p ${OUTDIR}; echo "making directory \"${OUTDIR}\" for output"; echo ""; fi
+# make path to OUTDIR absolute
+OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
+OUTPUT="${OUTDIR}/SuRE-counts.txt"
+OUTPUT_BC="${OUTDIR}/SuRE-counts_BC.txt"
+
+######################################
+# write stdout to stdout or a log file
+######################################
+if [ ${LOG} == "true" ]; then 
+  LOG="${OUTDIR}/${BASENAME}.log"
   exec 1>>${LOG}
 fi
 
@@ -121,19 +140,15 @@ echo "User set variables:"
 echo "==================="
 echo "LOG=${LOG}"
 echo "NCORES=${NCORES}"
-echo "SAMPLES=${SAMPLES}"
 echo "IPCR_FNAME=${IPCR_FNAME}"
-echo "CDNA_DIR=${CDNA_DIR}"
-echo "PLDNA_DIR=${PLDNA_DIR}"
-echo "output file=${OUTPUT}"
+echo "directory for output files=${OUTDIR}"
 echo ""
-echo "cDNA count-table files for input:"
-echo "================================="
-for f in $CDNA_DIR/*; do echo $f; done
-echo ""
-echo "plDNA count-table files for input:"
-echo "=================================="
-for f in $PLDNA_DIR/*; do echo $f; done
+echo "cDNA and plDNA count-table files for input (sample_name):"
+echo "==============================================="
+for k in "${!FNAMES[@]}"; 
+do 
+  echo -e "${FNAMES[$k]}\t($k)"; 
+done
 echo ""
 # print some software version info
 echo "Used software:"
@@ -144,113 +159,49 @@ echo "gawk:"; echo "executable used: ${GAWK}"; ${GAWK} --version; echo "";
 echo "=============="
 echo ""
 
-# check required subdirectories exist
-if [ ! -d iPCR ]; then mkdir -p "iPCR"; echo "making directory \"iPCR\" for output"; fi
 
-echo "starting loop over samples in sample-file"
 
-${GAWK} -v samplesfile=${SAMPLES} -v ipcrfname=${IPCR_FNAME} \
-  -v cdnadir=${CDNA_DIR} -v pldnadir=${PLDNA_DIR} -v bc2bcfname=${BC2BC_FNAME} ' 
-function basename(file) {
-  sub(".*/", "", file)
-  return file
-}
-function ripExtension(file,    ext) {
-  if (ext == "") {
-    ext=file
-    sub(".*\\.", ".", ext)
-  }
-  split(file, parts, ext)
-  return parts[1]
-}
-function read_file_into_array(file, array     ,status, record, count ) {
-  # define a function to read the entire config file into an array
-  # from http://www.unix.com/shell-programming-scripting/135373-put-lines-file-array-awk.html
-  # this function an entire text file into an array. It returns the number of read lines.
-  count  = 0;
-  while (1) {
-    status = getline record < file
-    if (status == -1) {
-      print "Failed to read file " file;
-      exit 1;
-    }
-    if (status == 0) break;
-    array[++count] = record;
-  }
-  close(file);
-  return count
-}
+
+
+##################################################
+#########  MAIN  #################################
+##################################################
+
+{ echo -e "iPCR\t${IPCR_FNAME}";
+  for (( i=0; i<${#SAMPLES[@]}; i++ )); do
+    echo -e "${SAMPLES[$i]}\t${FNAMES["${SAMPLES[$i]}"]}"; 
+  done } | \
+${GAWK} ' 
 BEGIN {
-# global variables
-FS="\t"
+  # global variables
+  FS="\t"
 
-# read sample meta file to extract sample- and file-names
-n = read_file_into_array(samplesfile, LINES)
-print "read samplefile with n="n" lines" > "/dev/stderr"
-# initialize/empty arrays for samplenames and filenames, extracted from sample meta file
-split("", pipes)
-split("", fnames)
-split("", samplenames)
-# iterate over records (ie. samples), read from sample metafile, store sample names and file names
-for (i=2; i <= n; i++) {
-  print "ith line = "LINES[i] > "/dev/stderr"
-  # for each iteration split the line in chunks into FIELDS
-  split(LINES[i], FIELDS)
-  # skip if sample file 5th column says so
-  if ( FIELDS[5] == "no" ) {
-    print "skipping this sample" > "/dev/stderr"
-    continue
-  }
-  print "fields[4] = "FIELDS[4] > "/dev/stderr"
-  switch (FIELDS[4]) { # field 4 has the type of data for current record
-  case "cDNA":
-    # count-tabels file 
-    fname = cdnadir"/"ripExtension(basename(FIELDS[2]), ".fastq.gz")"_trimmed_table.txt.gz"
-    if ( system("test -f " fname)!=0 )
-      break
-    fnames[length(fnames)+1] = fname
-    pipes[fname] = "gzip -dc "fname
-    samplenames[length(samplenames)+1] = FIELDS[1]
-    break
-  case "plDNA":
-    # count-tabels file 
-    fname = pldnadir"/"ripExtension(basename(FIELDS[2]), ".fastq.gz")"_trimmed_table.txt.gz"
-    if ( system("test -f " fname)!=0 ) {
-      print "this file doesnt exist: "fname > "/dev/stderr"
-      break
-    }
-  else {
-      print "this file exist: "fname > "/dev/stderr"
-    }
-    fnames[length(fnames)+1] = fname
-    pipes[fname] = "gzip -dc "fname
-    samplenames[length(samplenames)+1] = FIELDS[1]
-    break
-  case "iPCR":
-    # skip as iPCR datafile is supplied on commandline
-    break
-  case "?":
-  default:
-    printf ("default (case =#%s#)", FIELDS[4], "\n") > "/dev/stderr"
-    usage()
-    break
-  }
+  split("", pipes)
+  split("", samples)
+
 }
-
-  # open ipcr datafile as pipe
-  ipcrpipe = "gzip -dc "ipcrfname
-
+NR==1 {
+  # iPCR filename
+  ipcr_pipe  = "gzip -dc "$2
+  next
+}
+{
+  # cDNA/plDNA filename
+  samples[length(samples)+1] = $1
+  pipes[$1]                  = "gzip -dc "$2
+}
+END {
   # print header to stdout 
   printf ("chr\tstart\tend\tstrand\tiPCR")
-  for (i in samplenames)
-    printf("\t%s", samplenames[i])
+  for (i=1; i<=length(samples); i++)
+    printf("\t%s", samples[i])
   printf("\n")
 
   # read input from iPCR datafile; for every BC read from iPCR iterate over all
   # other input pipes and for each pipe extract all lines untill the BC read
   # from that input pipe is (alphabetically) larger than the iPCR barcode
   cnt=0
-  while ((ipcrpipe | getline) > 0) {
+  while ((ipcr_pipe | getline) > 0) {
     # initialize/empty an array to collect fields for output
     split("", lineout)
     BCipcr = $6
@@ -261,17 +212,17 @@ for (i=2; i <= n; i++) {
     lineout["STRAND"] = $5
 
     # iterate over all open pipes
-    for (i in fnames) {
+    for (i in samples) {
       # initialize count for current sample to zero
-      lineout[samplenames[i]] = 0
+      lineout[samples[i]] = 0
       # check whether pipe to current sample file is closed; skip to next sample in that case
-      if (! fnames[i] in pipes)
-	continue
+      if (! samples[i] in pipes)
+        continue
 
       # for current iPCR barcode check whether the previously read barcode for current sample is identical or not
       if (BCprev[i] == BCipcr)
-	# identical barcodes; set count for current iPCR barcode
-	lineout[samplenames[i]] = CNTprev[i]
+        # identical barcodes; set count for current iPCR barcode
+        lineout[samples[i]] = CNTprev[i]
 
       if (BCprev[i] > BCipcr)
         # previous sample barcode is "larger" than iPCR barcode, therefor
@@ -284,31 +235,30 @@ for (i=2; i <= n; i++) {
       # is > iPCR barcode. If a newly read sample barcode is identical to iPCR
       # barcode update the count for the current sample
       while(1) {
-	# read from current sample pipe
-	# print "in while loop: i="i", fname="fnames[i]", pipe="pipes[fnames[i]] > "/dev/stderr"
-        status = (pipes[fnames[i]]) | getline line
-	# checkfile read status; if EOF close this pipe and delete the pipe from array _pipes_
+        # read from current sample pipe
+        # print "in while loop: i="i", sample="samples[i]", pipe="pipes[samples[i]] > "/dev/stderr"
+        status = (pipes[samples[i]]) | getline line
+        # checkfile read status; if EOF close this pipe and delete the pipe from array _pipes_
         if (status == 0) {
-          close (pipes[fnames[i]])
-          delete pipes[fnames[i]]
-	  delete fnames[i]
-	  # break from _while(1)_ loop which reads from current sample pipe, to read next sample pipe
+          close (pipes[samples[i]])
+          delete pipes[samples[i]]
+          # break from _while(1)_ loop which reads from current sample pipe, to read next sample pipe
           break
-	}
+        }
 
-	# process record read from sample pipe; compare sample barcode and iPCR barcode
-	split(line, fields)
+        # process record read from sample pipe; compare sample barcode and iPCR barcode
+        split(line, fields)
         if (fields[2] == BCipcr) {
-	  # sample barcode equal to iPCR barcode; update count for current sample
-          lineout[samplenames[i]] = lineout[samplenames[i]] + fields[1]
-	}
+          # sample barcode equal to iPCR barcode; update count for current sample
+          lineout[samples[i]] = lineout[samples[i]] + fields[1]
+        }
         if (fields[2] > BCipcr) {
-	  # newly read sample barcode > iPCR barcode, therefor store sample barcode for checking with subsequent iPCR barcodes
+          # newly read sample barcode > iPCR barcode, therefor store sample barcode for checking with subsequent iPCR barcodes
           BCprev[i] = fields[2]
-	  CNTprev[i] = fields[1]
-	  # break from _while(1)_ loop which reads from current sample pipe, to read next sample pipe
-	  break
-      	}
+          CNTprev[i] = fields[1]
+          # break from _while(1)_ loop which reads from current sample pipe, to read next sample pipe
+          break
+        }
       } # end loop _while(1)_
     } # end loop _for (i in pipes)_
 
@@ -316,13 +266,13 @@ for (i=2; i <= n; i++) {
     # print record to stdout
     printf("%s\t%s\t%d\t%d\t%s\t%d", 
       BCipcr, lineout["CHR"], lineout["START"], lineout["END"], lineout["STRAND"], lineout["iPCR"])
-    for (i in samplenames) 
-      printf("\t%d", lineout[samplenames[i]])
+    for (i in samples) 
+      printf("\t%d", lineout[samples[i]])
     printf("\n")
   } # end loop _while ((ipcrpipe | getline) > 0)_
   close (ipcr file)
 }' | \
-  tee ${OUTPUT}".plusBC" | \
+  tee (bzip2 -c > ${OUTPUT_BC}".bz2") | \
   # remove barcode from intermediate output in column 1 (but leave first line intact)
   # cut -f 2- - | \
   ${GAWK} ' BEGIN {OFS="\t"} 
@@ -335,7 +285,7 @@ for (i=2; i <= n; i++) {
       next
     }
     { 
-      print $0 | "sort -S 50% --parallel=${NCORES}  -k1.4,1V -k2,2g -k3,3g"
+      print $0 | "sort -S 50%  -k1.4,1V -k2,2g -k3,3g"
     }' | \
 ${GAWK} '
 # awk script to merge counts for duplicated positions
@@ -411,7 +361,7 @@ NR > 2 {
 END {
   PROC_PREV_POS()
 } ' | \
-gzip -c > ${OUTPUT}
+gzip -c > ${OUTPUT}".gz"
 
 
 LINE="finished "${SCRIPTNAME}
