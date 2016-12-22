@@ -32,9 +32,14 @@ cDNA:
 
 plDNA:
   FASTQ_DIR:
+    "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/data/plDNA-fastq"
   OUTDIR:
     "plDNA"
   SAMPLES:
+    plDNA.1:
+      - test-1.100000.fastq
+    plDNA.2:
+      - test-2.100000.fastq
 
 iPCR:
   FASTQ_DIR:

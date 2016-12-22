@@ -6,6 +6,7 @@ configfile: "SuRE-test-config.yaml"
 cDNA_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/cDNA-plDNA-count-BC.bash"
 iPCR_map_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/iPCR-map-BC.bash"
 iPCR_merge_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/iPCR-merge-bedpe-Filter-BC-multi-pos.bash"
+merge_all_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/merge-iPCR-cDNA-plDNA.bash"
 ADPT_SEQ="CCTAGCTAACTATAACGGTCCTAAGGTAGCGAA"
 
 OUTDIR=config["OUTDIR"]
@@ -15,6 +16,11 @@ cDNA_FASTQ_DIR=config["cDNA"]["FASTQ_DIR"]
 cDNA_OUTDIR=os.path.join(config["OUTDIR"], config["cDNA"]["OUTDIR"])
 cDNA_COUNTS=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys())
 
+plDNA_SAMPLES=config["plDNA"]["SAMPLES"]
+plDNA_FASTQ_DIR=config["plDNA"]["FASTQ_DIR"]
+plDNA_OUTDIR=os.path.join(config["OUTDIR"], config["plDNA"]["OUTDIR"])
+plDNA_COUNTS=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
+
 iPCR_SAMPLES=config["iPCR"]["SAMPLES"]
 iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
 iPCR_OUTDIR=os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"])
@@ -23,15 +29,26 @@ BEDPE_FILES=expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "{s}
 
 rule all:
 	input:
-		BEDPE_FILES, cDNA_COUNTS
+		os.path.join(OUTDIR, "SuRE-counts.txt.gz")
 
-rule cDNA_plDNA:
+rule cDNA:
   input:
     lambda wildcards: [os.path.join(cDNA_FASTQ_DIR, f) for f in cDNA_SAMPLES[wildcards.s]]
   output:
     os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz")
   params:
     dir=os.path.join(cDNA_OUTDIR,"{s}"),
+    basename="{s}"
+  shell:
+    cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
+
+rule plDNA:
+  input:
+    lambda wildcards: [os.path.join(plDNA_FASTQ_DIR, f) for f in plDNA_SAMPLES[wildcards.s]]
+  output:
+    os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz")
+  params:
+    dir=os.path.join(plDNA_OUTDIR,"{s}"),
     basename="{s}"
   shell:
     cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
@@ -60,9 +77,10 @@ rule iPCR_merge:
 rule merge_all:
   input:
     iPCR=os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz"),
-    cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys())
+    cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
+    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
   output:
-    touch(os.path.join(OUTDIR, "SuRE-counts.txt.gz"))
+    os.path.join(OUTDIR, "SuRE-counts.txt.gz")
   shell:
-    "ls -l {input.iPCR} {input.cDNA}"
-    # script -i {input.iPCR} -c {input.cDNA} -o {output}"
+    # "ls -l {input.iPCR} {input.cDNA}"
+    merge_all_script + " -i {input.iPCR} -o {output} {input.cDNA} {input.plDNA}"
