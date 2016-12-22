@@ -272,7 +272,7 @@ END {
   } # end loop _while ((ipcrpipe | getline) > 0)_
   close (ipcr file)
 }' | \
-  tee (bzip2 -c > ${OUTPUT_BC}".bz2") | \
+  tee >(bzip2 -c > ${OUTPUT_BC}".bz2") | \
   # remove barcode from intermediate output in column 1 (but leave first line intact)
   # cut -f 2- - | \
   ${GAWK} ' BEGIN {OFS="\t"} 
