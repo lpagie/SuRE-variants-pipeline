@@ -269,7 +269,8 @@ END {
     # print record to stdout
     printf("%s\t%s\t%d\t%d\t%s\t%d", 
       BCipcr, lineout["CHR"], lineout["START"], lineout["END"], lineout["STRAND"], lineout["iPCR"])
-    for (i in samples) 
+    # for (i in samples) 
+    for (i=1; i<=length(samples); i++)
       printf("\t%d", lineout[samples[i]])
     printf("\n")
   } # end loop _while ((ipcrpipe | getline) > 0)_
