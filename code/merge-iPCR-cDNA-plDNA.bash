@@ -65,10 +65,10 @@ usage() {
   exit 1;
 }
 
-while getopts "h?s:o:i:l:n:" opt; do
+while getopts "h?s:o:i:ln:" opt; do
   case $opt in
     l)
-      LOG=$OPTARG;
+      LOG=true;
       ;;
     n)
       NCORES=$OPTARG;
@@ -94,11 +94,11 @@ shift $(( OPTIND - 1 ))
 declare -A FNAMES
 declare -a SAMPLES
 for f in $*; do
-  echo "arg=${f}"
+  # echo "arg=${f}"
   sample=$(basename $(dirname "${f}"))
   type=$(basename $(dirname $(dirname "${f}")))
-  echo "sample=${sample}"
-  echo "type=${type}"
+  # echo "sample=${sample}"
+  # echo "type=${type}"
   # make filename path absolute
   D=`dirname "${f}"`
   B=`basename "${f}"`
@@ -122,7 +122,7 @@ OUTPUT_BC="${OUTDIR}/SuRE-counts_BC.txt"
 # write stdout to stdout or a log file
 ######################################
 if [ ${LOG} == "true" ]; then 
-  LOG="${OUTDIR}/${BASENAME}.log"
+  LOG="${OUTDIR}/mergeAll.log"
   exec 1>>${LOG}
 fi
 
@@ -216,8 +216,10 @@ END {
       # initialize count for current sample to zero
       lineout[samples[i]] = 0
       # check whether pipe to current sample file is closed; skip to next sample in that case
-      if (! samples[i] in pipes)
+      if ( !(samples[i] in pipes) )
         continue
+
+# THE ABOVE CHECK SHOULD MAKE SURE THE PROBLEM DOES NOT OCCUR!!!!!
 
       # for current iPCR barcode check whether the previously read barcode for current sample is identical or not
       if (BCprev[i] == BCipcr)
@@ -240,6 +242,7 @@ END {
         status = (pipes[samples[i]]) | getline line
         # checkfile read status; if EOF close this pipe and delete the pipe from array _pipes_
         if (status == 0) {
+        print "in while loop: i="i", sample="samples[i]", pipe="pipes[samples[i]] > "/dev/stderr"
           close (pipes[samples[i]])
           delete pipes[samples[i]]
           # break from _while(1)_ loop which reads from current sample pipe, to read next sample pipe
@@ -287,7 +290,7 @@ END {
     { 
       print $0 | "sort -S 50%  -k1.4,1V -k2,2g -k3,3g"
     }' | \
-${GAWK} '
+${GAWK} -v POS_MULTI_BC_FNAME="${OUTDIR}/pos_multi_BC.txt" '
 # awk script to merge counts for duplicated positions
 # the input is position sorted: CHR/START/END/STRAND/IPCR/SAMPLES.....
 # for every input line a position-label is created as a concatenation of the fields chr/start/end/strand
@@ -330,7 +333,7 @@ BEGIN {
   COLSTR = 5
   COLCNT = 7
 
-  POS_MULTI_BC_FNAME = "iPCR/pos_multi_BC.txt"
+  # POS_MULTI_BC_FNAME = "iPCR/pos_multi_BC.txt"
 }
 
 NR == 1 { # read and print header from input
