@@ -367,6 +367,8 @@ END {
 } ' | \
 gzip -c > ${OUTPUT}".gz"
 
+# compress some intermediate files
+bzip2 "${OUTDIR}/pos_multi_BC.txt"
 
 LINE="finished "${SCRIPTNAME}
 SEPARATOR=$(head -c ${#LINE} </dev/zero | tr '\0' '=')
