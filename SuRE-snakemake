@@ -5,13 +5,24 @@ import os.path
 #from snakemake.remote.SFTP import RemoteProvider
 #SFTP = RemoteProvider()
 
-configfile: "SuRE-config.yaml"
+configfile: "SuRE42-45-config.yaml"
 
-cDNA_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/cDNA-plDNA-count-BC.bash"
-iPCR_map_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/iPCR-map-BC.bash"
-iPCR_merge_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/iPCR-merge-bedpe-Filter-BC-multi-pos.bash"
-merge_all_script="/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/merge-iPCR-cDNA-plDNA.bash"
-ADPT_SEQ="CCTAGCTAACTATAACGGTCCTAAGGTAGCGAA"
+include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
+
+# copy all parameters (for readability)
+# CODE_BASE         = config["CODE_BASE"]
+CODE_BASE         = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/"
+cDNA_script       = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
+iPCR_map_script   = os.path.join(CODE_BASE, "iPCR-map-BC.bash")
+iPCR_merge_script = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
+merge_all_script  = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
+
+ADPT_SEQ            = config["ADPT_SEQ"]
+ADPTR_IPCR_FORW_SEQ = config["ADPTR_IPCR_FORW_SEQ"]
+ADPTR_IPCR_REV_SEQ  = config["ADPTR_IPCR_REV_SEQ"]
+BOWTIE2_REFSEQ      = config["BOWTIE2_REFSEQ"]
+MAX_INSERT_LENGTH   = config["MAX_INSERT_LENGTH"]
+NCORES              = config["NCORES"]
 
 OUTDIR=config["OUTDIR"]
 
@@ -28,12 +39,14 @@ plDNA_COUNTS=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"
 iPCR_SAMPLES=config["iPCR"]["SAMPLES"]
 iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
 iPCR_OUTDIR=os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"])
-
 BEDPE_FILES=expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
+
+print(cDNA_FASTQ_DIR)
 
 rule all:
   input:
-    os.path.join(OUTDIR, "SuRE-counts.txt.gz")
+    os.path.join(OUTDIR, "SuRE-counts.txt.gz"),
+    "bed2coverage.done"
 
 rule all_cDNA:
   input:
@@ -47,23 +60,43 @@ rule all_iPCR_map:
   input:
     expand(os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
 
+rule all_iPCR_merge:
+  input:
+    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
+
+rule clean:
+  input:
+    "cDNA_cleaned", "plDNA_cleaned", "iPCR_cleaned"
+
 rule clean_cDNA:
   input:
     expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_info.gz"), s=cDNA_SAMPLES.keys())
+  output:
+    temp(touch("cDNA_cleaned"))
   shell:
     "rm -f {input}"
 
 rule clean_plDNA:
   input:
     expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_info.gz"), s=plDNA_SAMPLES.keys())
+  output:
+    temp(touch("plDNA_cleaned"))
   shell:
     "rm -f {input}"
 
+
+
 rule clean_iPCR_map:
   input:
-    expand(os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
+    expand("{s}_iPCR_cleaned", s=iPCR_SAMPLES.keys())
+
+rule clean_iPCR_map_2nd:
+  input:
+     os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
   params:
     dir=os.path.join(iPCR_OUTDIR, "{s}")
+  output:
+    temp(touch("{s}_iPCR_cleaned"))
   shell:
     "rm -f '{params.dir}'/*tmp.gz '{params.dir}'/*bam '{params.dir}'/*info* '{params.dir}'/*fastq*"
 
@@ -96,13 +129,17 @@ rule iPCR_map:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}"),
     basename="{s}",
-    cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"]
+    cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
+    refseq=BOWTIE2_REFSEQ,
+    forwAdaptr=ADPTR_IPCR_FORW_SEQ,
+    revAdaptr=ADPTR_IPCR_REV_SEQ,
+    maxInsert=MAX_INSERT_LENGTH
   output:
     os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
   threads: 
-    8
+    NCORES
   shell:
-    iPCR_map_script + " -o '{params.dir}' -l -n {threads} -b '{params.basename}' -d '{params.cutmotif}' -c {input.R1} {input.R2}"
+    iPCR_map_script + " -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -d '{params.cutmotif}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input.R1} {input.R2}"
 
 rule iPCR_merge:
   input:
@@ -120,4 +157,5 @@ rule merge_all:
   output:
     os.path.join(OUTDIR, "SuRE-counts.txt.gz")
   shell:
-    merge_all_script + " -i {input.iPCR} -o {output} {input.cDNA} {input.plDNA}"
+    # merge_all_script + " -i {input.iPCR} -o {output} {input.cDNA} {input.plDNA}"
+    merge_all_script + " -l -i {input.iPCR} -o {OUTDIR} {input.cDNA} {input.plDNA}"
