@@ -25,6 +25,8 @@
 #   -b: basename [based on input file name]
 #   -c: if set; do not clean intermediate files
 #   -n: number of cores used in parallel processes (10)
+#   -m: max insert length for aligned read pair to be considered 'concordant' by bowtie (1000)
+#   -s: name of bowtie2 index file with genome reference sequence (hg19_ch1-22_XYM)
 # INPUT:
 #   iPCR fastq files
 # OUTPUT:
@@ -52,7 +54,7 @@ PYTHON=$HOME/python_virt_env_cutadapt/bin/python
 # GLOBAL VARIABLES
 NCORES=10
 MIN_READ_LENGTH=5
-MAX_INSERT_LENGTH=4000
+MAX_INSERT_LENGTH=1000
 export BOWTIE2_INDEXES=$HOME/data/bowtie2-indexes/
 BOWTIE2_REFSEQ="hg19_ch1-22_XYM"
 ADPTR_FORW_SEQ="CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT"
@@ -65,7 +67,7 @@ LOG="false"
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: ${SCRIPTNAME} -o[frdlbnch] forw-reads.fastq[.gz/bz2] rev-reads.fastq[.gz/.bz2]"
+  echo >&2 "usage: ${SCRIPTNAME} -o[frdlbncmsh] forw-reads.fastq[.gz/bz2] rev-reads.fastq[.gz/.bz2]"
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -f: forward read adapter sequence [CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT]"
@@ -75,12 +77,14 @@ usage() {
   echo >&2 "  -b: sets basename used for all output files [default: based on input filename]"
   echo >&2 "  -n: number of cores used where possible [default: 10]"
   echo >&2 "  -c: do not clean up intermediate files [default: clean]"
+  echo >&2 "  -m: max insert length for aligned read pair to be considered 'concordant' by bowtie [default: 1000]"
+  echo >&2 "  -s: name of bowtie2 index file with genome reference sequence [default: hg19_ch1-22_XYM]"
   echo >&2 "  -h: print this message"
   echo >&2 ""
   exit 1;
 }
 
-while getopts "h?f:o:r:d:lb:n:c" opt; do
+while getopts "h?f:o:r:d:lb:n:m:s:c" opt; do
   case $opt in
     l)
       LOG="true";
@@ -105,6 +109,12 @@ while getopts "h?f:o:r:d:lb:n:c" opt; do
       ;;
     c)
       CLEAN=false;
+      ;;
+    m)
+      MAX_INSERT_LENGTH=$OPTARG;
+      ;;
+    s)
+      BOWTIE2_REFSEQ=$OPTARG;
       ;;
     h)
       usage;
@@ -321,9 +331,17 @@ function trim_reads {
   export DIR
   export BASENAME
 
-  CMD="${CUTADAPT} -g ${ADPTR} -o {.}_${DIR}_trimmed.fastq --info-file={.}_${DIR}_trimmed.info -O4 {} > {.}_${DIR}_trimmed.stats;\
-       ${CUTADAPT} -a ${RESTRICT_SITE} -o {.}_${DIR}_trimmed_${RESTRICT_SITE}.fastq -O4 {.}_${DIR}_trimmed.fastq > \
-       {.}_${DIR}_trimmed_${RESTRICT_SITE}.stats"
+  CMD="${CUTADAPT} -g ${ADPTR} -o {.}_${DIR}_trimmed.fastq --info-file={.}_${DIR}_trimmed.info -O4 {} > {.}_${DIR}_trimmed.stats;"
+  # if RESTRICT site is given (ie non-empty string) do an additional cutadapt step:
+ if [[ ${RESTRICT_SITE} ]]
+  then
+    CMD="${CMD}; ${CUTADAPT} -a ${RESTRICT_SITE} -o {.}_${DIR}_trimmed_${RESTRICT_SITE}.fastq -O4 {.}_${DIR}_trimmed.fastq > \
+      {.}_${DIR}_trimmed_${RESTRICT_SITE}.stats"
+  fi
+# 
+#   CMD="${CUTADAPT} -g ${ADPTR} -o {.}_${DIR}_trimmed.fastq --info-file={.}_${DIR}_trimmed.info -O4 {} > {.}_${DIR}_trimmed.stats;\
+#        ${CUTADAPT} -a ${RESTRICT_SITE} -o {.}_${DIR}_trimmed_${RESTRICT_SITE}.fastq -O4 {.}_${DIR}_trimmed.fastq > \
+#        {.}_${DIR}_trimmed_${RESTRICT_SITE}.stats"
   echo "cutadapt command = ${CMD}"
   parallel -j ${NCORES} ${CMD} :::  split*fastq
   
@@ -333,8 +351,15 @@ function trim_reads {
   cat *_${DIR}_trimmed.fastq > ${OUTDIR}/${BASENAME}_${DIR}_trimmed.fastq
   cat *_${DIR}_trimmed.info > ${OUTDIR}/${BASENAME}_${DIR}_trimmed.info
   cat *_${DIR}_trimmed.stats > ${OUTDIR}/${BASENAME}_${DIR}_trimmed.stats
-  cat *_${DIR}_trimmed_${RESTRICT_SITE}.fastq > ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.fastq
-  cat *_${DIR}_trimmed_${RESTRICT_SITE}.stats > ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.stats
+  # if RESTRICT site is *not* given (ie is an empty string) link the latter two output files to the unrestricted ones
+  if [[ -z ${RESTRICT_SITE} ]]
+  then
+    ln -s ${OUTDIR}/${BASENAME}_${DIR}_trimmed.fastq ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.fastq
+    ln -s ${OUTDIR}/${BASENAME}_${DIR}_trimmed.stats ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.stats
+  else
+    cat *_${DIR}_trimmed_${RESTRICT_SITE}.fastq > ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.fastq
+    cat *_${DIR}_trimmed_${RESTRICT_SITE}.stats > ${OUTDIR}/${BASENAME}_${DIR}_trimmed_${RESTRICT_SITE}.stats
+  fi
   echo "Finished merging the split result files"
 
   # go back to parent directory and delete the temporary processing directory
