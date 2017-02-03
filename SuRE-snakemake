@@ -5,7 +5,7 @@ import os.path
 #from snakemake.remote.SFTP import RemoteProvider
 #SFTP = RemoteProvider()
 
-configfile: "SuRE42-45-config.yaml"
+# configfile: "SuRE42-45-config.yaml"
 
 include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
 
