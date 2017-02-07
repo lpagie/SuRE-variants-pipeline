@@ -7,7 +7,7 @@ import os.path
 
 # configfile: "SuRE42-45-config.yaml"
 
-include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
+# include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
 
 # copy all parameters (for readability)
 # CODE_BASE         = config["CODE_BASE"]
@@ -27,26 +27,56 @@ NCORES              = config["NCORES"]
 OUTDIR=config["OUTDIR"]
 
 cDNA_SAMPLES=config["cDNA"]["SAMPLES"]
+if cDNA_SAMPLES is None:
+  cDNA_SAMPLES={}
 cDNA_FASTQ_DIR=config["cDNA"]["FASTQ_DIR"]
 cDNA_OUTDIR=os.path.join(config["OUTDIR"], config["cDNA"]["OUTDIR"])
 cDNA_COUNTS=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys())
 
 plDNA_SAMPLES=config["plDNA"]["SAMPLES"]
+if plDNA_SAMPLES is None:
+  plDNA_SAMPLES={}
 plDNA_FASTQ_DIR=config["plDNA"]["FASTQ_DIR"]
 plDNA_OUTDIR=os.path.join(config["OUTDIR"], config["plDNA"]["OUTDIR"])
 plDNA_COUNTS=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
 
 iPCR_SAMPLES=config["iPCR"]["SAMPLES"]
+if iPCR_SAMPLES is None:
+  iPCR_SAMPLES={}
+  tt={}
+else:
+  tt={sample:[iPCR_SAMPLES[sample]["R1"], iPCR_SAMPLES[sample]["R2"]] for sample in iPCR_SAMPLES}
 iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
 iPCR_OUTDIR=os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"])
 BEDPE_FILES=expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
 
-print(cDNA_FASTQ_DIR)
+# print(cDNA_FASTQ_DIR)
+
+print("iPCR_CONFIG = ", config["iPCR"])
+print ("iPCR_SAMPLES = ",iPCR_SAMPLES)
+print(iPCR_SAMPLES == None)
+print("BEDPE FILES = ", BEDPE_FILES)
+# tt={"sample1":["F1","F2"]}
+
+print("tt = ", tt)
+
+rule testrule2:
+  input:
+    lambda wildcards: [f for f in tt[wildcards.s]]
+  output:
+    os.path.join("test-out", "{s}", "{s}.bedpe.gz")
+  shell:
+    "echo {input} > {output}"
+
+rule testrule:
+  input: BEDPE_FILES
 
 rule all:
   input:
-    os.path.join(OUTDIR, "SuRE-counts.txt.gz"),
-    "bed2coverage.done"
+    expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
+    expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
+    os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else [],
+    # "bed2coverage.done"
 
 rule all_cDNA:
   input:
@@ -121,6 +151,12 @@ rule plDNA:
     basename="{s}"
   shell:
     cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
+
+rule iPCR_trim:
+
+rule iPCR_mapOnly:
+
+rule iPCR_bam2bedpe:
 
 rule iPCR_map:
   input:
