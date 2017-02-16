@@ -107,6 +107,7 @@ rule iPCR_mapOnly:
     maxInsert=MAX_INSERT_LENGTH
   threads: 
     NCORES
+  priority: 50
   shell:
     iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -d '{params.cutmotif}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
 
