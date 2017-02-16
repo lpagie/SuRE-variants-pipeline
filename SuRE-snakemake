@@ -1,11 +1,5 @@
-# snakemake --cores 10 -np -s SuRE-snakemake
-
 import glob
 import os.path
-#from snakemake.remote.SFTP import RemoteProvider
-#SFTP = RemoteProvider()
-
-# configfile: "SuRE42-45-config.yaml"
 
 # include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
 
@@ -13,7 +7,9 @@ import os.path
 # CODE_BASE         = config["CODE_BASE"]
 CODE_BASE         = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/"
 cDNA_script       = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
-iPCR_map_script   = os.path.join(CODE_BASE, "iPCR-map-BC.bash")
+iPCR_trim_script   = os.path.join(CODE_BASE, "iPCR-trim.bash")
+iPCR_mapOnly_script   = os.path.join(CODE_BASE, "iPCR-map.bash")
+iPCR_bam2bedpe_script   = os.path.join(CODE_BASE, "iPCR-bam2bedpe.bash")
 iPCR_merge_script = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
 merge_all_script  = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
 
@@ -46,37 +42,103 @@ if iPCR_SAMPLES is None:
   tt={}
 else:
   tt={sample:[iPCR_SAMPLES[sample]["R1"], iPCR_SAMPLES[sample]["R2"]] for sample in iPCR_SAMPLES}
+iPCR_SAMPLE2FILES={sample:[iPCR_SAMPLES[sample]["R1"],iPCR_SAMPLES[sample]["R2"]] for sample in iPCR_SAMPLES.keys()}
 iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
 iPCR_OUTDIR=os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"])
 BEDPE_FILES=expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
 
-# print(cDNA_FASTQ_DIR)
-
-print("iPCR_CONFIG = ", config["iPCR"])
-print ("iPCR_SAMPLES = ",iPCR_SAMPLES)
-print(iPCR_SAMPLES == None)
-print("BEDPE FILES = ", BEDPE_FILES)
-# tt={"sample1":["F1","F2"]}
-
-print("tt = ", tt)
-
-rule testrule2:
-  input:
-    lambda wildcards: [f for f in tt[wildcards.s]]
-  output:
-    os.path.join("test-out", "{s}", "{s}.bedpe.gz")
-  shell:
-    "echo {input} > {output}"
-
-rule testrule:
-  input: BEDPE_FILES
-
+TYPES=["cDNA","plDNA"]
 rule all:
   input:
+#    [os.path.join(OUTDIR, config[d]["OUTDIR"], s, s+"_trimmed_table.txt.gz") for d in TYPES for s in config[d]["SAMPLES"]],
     expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
     expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
-    os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else [],
+    os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else []
     # "bed2coverage.done"
+
+rule cDNA:
+  input:
+    lambda wildcards: [os.path.join(cDNA_FASTQ_DIR, f) for f in cDNA_SAMPLES[wildcards.s]]
+  output:
+    os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz")
+  params:
+    dir=os.path.join(cDNA_OUTDIR,"{s}"),
+    basename="{s}"
+  shell:
+    cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
+
+rule plDNA:
+  input:
+    lambda wildcards: [os.path.join(plDNA_FASTQ_DIR, f) for f in plDNA_SAMPLES[wildcards.s]]
+  output:
+    os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz")
+  params:
+    dir=os.path.join(plDNA_OUTDIR,"{s}"),
+    basename="{s}"
+  shell:
+    cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
+
+rule iPCR_trim:
+  input:
+    lambda wildcards: [os.path.join(iPCR_FASTQ_DIR, f) for f in iPCR_SAMPLE2FILES[wildcards.s]]
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq"),
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.info")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}"),
+    basename="{s}"
+  shell:
+    iPCR_trim_script + " -o '{params.dir}' -l  -b '{params.basename}' -c {input}"
+
+rule iPCR_mapOnly:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq") 
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","{s}.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}"),
+    basename="{s}",
+    cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
+    refseq=BOWTIE2_REFSEQ,
+    forwAdaptr=ADPTR_IPCR_FORW_SEQ,
+    revAdaptr=ADPTR_IPCR_REV_SEQ,
+    maxInsert=MAX_INSERT_LENGTH
+  threads: 
+    NCORES
+  shell:
+    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -d '{params.cutmotif}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+
+rule iPCR_bam2bedpe:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","{s}.bam"),
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.info")
+  output:
+    os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}"),
+    basename="{s}"
+  shell:
+    iPCR_bam2bedpe_script + " -o '{params.dir}' -l -b '{params.basename}' {input}" 
+
+rule iPCR_merge:
+  input:
+     BEDPE_FILES
+  output:
+    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
+  shell:
+    iPCR_merge_script + " -l -o {iPCR_OUTDIR} {input}"
+
+rule merge_all:
+  input:
+    iPCR=os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz"),
+    cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
+    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
+  output:
+    os.path.join(OUTDIR, "SuRE-counts.txt.gz")
+  shell:
+    merge_all_script + " -l -i {input.iPCR} -o {OUTDIR} {input.cDNA} {input.plDNA}"
 
 rule all_cDNA:
   input:
@@ -130,68 +192,4 @@ rule clean_iPCR_map_2nd:
   shell:
     "rm -f '{params.dir}'/*tmp.gz '{params.dir}'/*bam '{params.dir}'/*info* '{params.dir}'/*fastq*"
 
-rule cDNA:
-  input:
-    lambda wildcards: [os.path.join(cDNA_FASTQ_DIR, f) for f in cDNA_SAMPLES[wildcards.s]]
-  output:
-    os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz")
-  params:
-    dir=os.path.join(cDNA_OUTDIR,"{s}"),
-    basename="{s}"
-  shell:
-    cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
 
-rule plDNA:
-  input:
-    lambda wildcards: [os.path.join(plDNA_FASTQ_DIR, f) for f in plDNA_SAMPLES[wildcards.s]]
-  output:
-    os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz")
-  params:
-    dir=os.path.join(plDNA_OUTDIR,"{s}"),
-    basename="{s}"
-  shell:
-    cDNA_script + " -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
-
-rule iPCR_trim:
-
-rule iPCR_mapOnly:
-
-rule iPCR_bam2bedpe:
-
-rule iPCR_map:
-  input:
-    R1=lambda wildcards: [os.path.join(iPCR_FASTQ_DIR, f) for f in [iPCR_SAMPLES[wildcards.s]["R1"]]],
-    R2=lambda wildcards: [os.path.join(iPCR_FASTQ_DIR, f) for f in [iPCR_SAMPLES[wildcards.s]["R2"]]]
-  params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}"),
-    basename="{s}",
-    cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
-    refseq=BOWTIE2_REFSEQ,
-    forwAdaptr=ADPTR_IPCR_FORW_SEQ,
-    revAdaptr=ADPTR_IPCR_REV_SEQ,
-    maxInsert=MAX_INSERT_LENGTH
-  output:
-    os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
-  threads: 
-    NCORES
-  shell:
-    iPCR_map_script + " -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -d '{params.cutmotif}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input.R1} {input.R2}"
-
-rule iPCR_merge:
-  input:
-     BEDPE_FILES
-  output:
-    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
-  shell:
-    iPCR_merge_script + " -l -o {iPCR_OUTDIR} {input}"
-
-rule merge_all:
-  input:
-    iPCR=os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz"),
-    cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
-    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
-  output:
-    os.path.join(OUTDIR, "SuRE-counts.txt.gz")
-  shell:
-    # merge_all_script + " -i {input.iPCR} -o {output} {input.cDNA} {input.plDNA}"
-    merge_all_script + " -l -i {input.iPCR} -o {OUTDIR} {input.cDNA} {input.plDNA}"
