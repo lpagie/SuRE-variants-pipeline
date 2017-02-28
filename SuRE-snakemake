@@ -5,7 +5,7 @@ import os.path
 
 # copy all parameters (for readability)
 # CODE_BASE         = config["CODE_BASE"]
-CODE_BASE         = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code/"
+CODE_BASE         = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
 cDNA_script       = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
 iPCR_trim_script   = os.path.join(CODE_BASE, "iPCR-trim.bash")
 iPCR_mapOnly_script   = os.path.join(CODE_BASE, "iPCR-map.bash")
@@ -87,9 +87,10 @@ rule iPCR_trim:
     os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.info")
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}"),
+    cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
     basename="{s}"
   shell:
-    iPCR_trim_script + " -o '{params.dir}' -l  -b '{params.basename}' -c {input}"
+    iPCR_trim_script + " -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -c {input}"
 
 rule iPCR_mapOnly:
   input:
@@ -100,7 +101,6 @@ rule iPCR_mapOnly:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}"),
     basename="{s}",
-    cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
     refseq=BOWTIE2_REFSEQ,
     forwAdaptr=ADPTR_IPCR_FORW_SEQ,
     revAdaptr=ADPTR_IPCR_REV_SEQ,
@@ -109,7 +109,7 @@ rule iPCR_mapOnly:
     NCORES
   priority: 50
   shell:
-    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -d '{params.cutmotif}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
 
 rule iPCR_bam2bedpe:
   input:
