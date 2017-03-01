@@ -1,7 +1,7 @@
 import glob
 import os.path
 
-# include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
+include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
 
 # copy all parameters (for readability)
 # CODE_BASE         = config["CODE_BASE"]
@@ -53,8 +53,8 @@ rule all:
 #    [os.path.join(OUTDIR, config[d]["OUTDIR"], s, s+"_trimmed_table.txt.gz") for d in TYPES for s in config[d]["SAMPLES"]],
     expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
     expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
-    os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else []
-    # "bed2coverage.done"
+    os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else [],
+    "bed2coverage.done"
 
 rule cDNA:
   input:
