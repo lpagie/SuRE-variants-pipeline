@@ -69,7 +69,7 @@ usage() {
   exit 1;
 }
 
-while getopts "h?f:o:r:d:lb:n:m:s:c" opt; do
+while getopts "h?f:o:lb:n:m:s:c" opt; do
   case $opt in
     l)
       LOG="true";
