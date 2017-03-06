@@ -205,6 +205,8 @@ echo ""
 # setwd processing directory
 cd ${OUTDIR}
 
+STATS="${OUTDIR}/${BASENAME}.stats"
+
 ### CONVERT BAM FILE INTO BEDPE FILE ###########
 ################################################
 echo "starting conversion of bam file to bedpe file"
@@ -415,17 +417,18 @@ mv ${BEDPE} ${BEDPE}.tmp
 # those reads from the info file prior to adding the barcodes into the bedpe
 # file
 
-${GAWK} -F '\t' ' 
+${GAWK} -F '\t' -v statsfile=${STATS} ' 
 BEGIN {
   incl=0;
   excl=0;
 }
 FNR==NR{
-# print FILENAME, ARGV[1], ARGV[2] > "/dev/stderr"
+# print FILENAME, ARGV[1], ARGV[2] >> statsfile
   if (FILENAME != ARGV[1]) {exit} # if 1st input file is empty, abort
   a[$1]=substr($0, index($0,$2)); 
   next
 }
+$2==-1 { next; }
 { 
   # LP140424; trim readIDs differently for NKI formatted readIDs or BGI
   # formatted readIDs
@@ -433,11 +436,6 @@ FNR==NR{
   sub(/\/1$/,"",$1); # trim readID for bgi format
   # end LP140424
 
-  if ( $2 == "-1" ) {
-    excl++
-    delete a[$1]
-    next
-  }
   if ($1 in a) {
     BC = $5
     len  = length(BC)
@@ -455,10 +453,32 @@ FNR==NR{
   }
 }
 END {
-# print FNR, NR, FILENAME > "/dev/stderr"
-  if (FNR == NR) {print "2nd file empty" > "/dev/stderr"; exit} # the 2nd input file is empty; abort
-  for (key in a) print a[key];
-  print "while filtering for proper barcodes: included = "incl", discarded = "excl > "/dev/stderr"
+# print FNR, NR, FILENAME >> statsfile
+  if (FNR == NR) {print "2nd file empty" >> statsfile; exit} # the 2nd input file is empty; abort
+  for (key in a) {cnt++; print a[key];}
+  print "while filtering for proper barcodes: included = "incl", discarded = "excl >> statsfile
+  
+  printf "\n\n" >> statsfile
+  
+  printf ("bedpeFragmentCount\t%d\n", cnt) >> statsfile
+  
+  printf "iPCR_BC_lengths" >> statsfile
+  for (k in BClen) printf("\t%d", k) >> statsfile
+  printf "\n" >> statsfile
+  
+  printf "iPCR_BC_lengths_counts" >> statsfile
+  for (k in BClen) printf("\t%d", BClen[k]) >> statsfile
+  printf "\n" >> statsfile
+  
+  printf "iPCR_BC_NNN" >> statsfile
+  for (k in NNN) printf("\t%d", k) >> statsfile
+  printf "\n" >> statsfile
+  
+  printf "iPCR_BC_NNN_counts" >> statsfile
+  for (k in NNN) printf("\t%d", NNN[k]) >> statsfile
+  printf "\n" >> statsfile
+  
+  printf "\n\n" >> statsfile
 } ' ${BEDPE}.tmp <(${CAT} ${INFO}) | \
 # sort resulting bedpe file on seqname and start (latter numeric
 # sort)
@@ -468,14 +488,17 @@ uniq -c |\
 # reorder columns: move count to 7th column
 # and write to $BEDPE the following columns:
 # chr start end length strand barcode count internal-end internal-start MAPQ MD1 MD2 XS1 XS2 SEQ1 SEQ2
-${GAWK} ' 
+${GAWK} -v statsfile=${STATS} ' 
 BEGIN{ 
   OFS="\t";
   print("seqname","start","end","length","strand","barcode","count","end.intr","start.intr","MAPQ","MD.1","MD.2","alt.1","alt.2","seq.1","seq.2");
 } 
 { 
   print($2,$3,$4,$4-$3+1,$5,$16,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15)
-} ' > ${BEDPE}
+} 
+END {
+  printf("bedpeFragmentUniqCount\t%d\n\n", NR) >> statsfile
+}' > ${BEDPE}
 echo "conversion bam to bedpe done"
 
 
