@@ -235,7 +235,7 @@ R --no-save -q <<EOR
   bitmap(file=oname,res=144, taa=4);
   plot(cbind(dt[[2]], dt[[1]]), ty='h', log='xy', ylab='frequency', xlab='barcode count', col='grey', axes=F);
   par(new=TRUE);
-  plot(cbind(dt[[2]], dt[[1]]), ty='h', log='y', ylab='frequency', xlab='barcode count', main=main, xlim=c(0,500), xpd=NA);
+  plot(cbind(dt[[2]], dt[[1]]), ty='h', log='y', ylab='frequency', xlab='barcode count', main=main, xlim=c(0,500), xpd=NA, lwd=3);
   legend(x='topr', inset=0.025, bty='n', legend=c('absolute BC count', 'log-scaled BC count'), fill=c('black','grey'));
   dev.off()
 
@@ -246,7 +246,7 @@ R --no-save -q <<EOR
   dt <- read.delim(fname, header=FALSE)
   main <- sprintf("%s: BC lengths, cDNA (#uniq BC = %d)", main, as.integer(sum(dt[[2]])))
   bitmap(file=oname,res=144, taa=4);
-  plot(cbind(dt[[1]], dt[[2]]), ty='h', log='', ylab='frequency', xlab='barcode length', col='black', main=main);
+  plot(cbind(dt[[1]], dt[[2]]), ty='h', log='', ylab='frequency', xlab='barcode length', col='black', main=main, lwd=3);
   dev.off()
 EOR
 
