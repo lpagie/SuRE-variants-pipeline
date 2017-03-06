@@ -243,11 +243,13 @@ echo ""
 #######  MAIN  ##################
 #################################
 
+STATS="${OUTDIR}/${BASENAME}.stats"
+
 ### READS TRIMMING ######
 #########################
 # construct cutadapt command:
 createCMD () {
-CMD="${CUTADAPT} -g ${ADPTR} -o ${OUTDIR}/${BASENAME}_${DIR}.fastq \
+CMD="${CUTADAPT} -g ${ADPTR} -o ${OUTDIR}/${BASENAME}_${DIR}.fastq --discard-untrimmed \
        --info-file=${OUTDIR}/${BASENAME}_${DIR}.info -O4 ${FASTQ} >> ${OUTDIR}/${BASENAME}_${DIR}.stats"
 if [[ ! -z ${RESTRICT_SITE} ]]
 then
@@ -271,6 +273,21 @@ DIR=forw
 createCMD;
 echo "cutadapt command = ${CMD}"
 eval "${CMD}"
+# record some stats in file STATS
+cat "${OUTDIR}/${BASENAME}_${DIR}.stats" | \
+  ${GAWK} '
+    BEGIN {OFS="\t"}
+    /Total reads processed/{
+      printf ("totalReadCount\t%d\n", 
+              gensub(/,/,"","g", gensub(/^.*:\s*(.*)$/,"\\1", "g"))); 
+      exit}' >> ${STATS}
+cat "${OUTDIR}/${BASENAME}_${DIR}.stats" | \
+  ${GAWK} '
+    BEGIN {OFS="\t"}
+    /Reads with adapters/{
+      printf ("trimmedForwReadCount\t%d\n", 
+              gensub(/,/,"","g", gensub(/^.*:\s*(.*)$/,"\\1", "g"))); 
+      exit}' >> ${STATS}
 echo -e "finished trimming adapter in forward reads\n\n"
 
 # trim reverse read #
@@ -284,7 +301,60 @@ DIR=rev
 createCMD;
 echo "cutadapt command = ${CMD}"
 eval "${CMD}"
+# record some stats in file STATS
+cat "${OUTDIR}/${BASENAME}_${DIR}.stats" | \
+  ${GAWK} '
+    BEGIN {OFS="\t"}
+    /Reads with adapters/{
+      printf ("trimmedRevReadCount\t%d\n", 
+              gensub(/,/,"","g", gensub(/^.*:\s*(.*)$/,"\\1", "g"))); 
+      exit}' >> ${STATS}
 echo -e "finished trimming adapter in reverse reads\n\n"
+
+# the trimmed fastq files may not contain the same set of reads
+# unify the two fastq files:
+# read forward reads, store with readID in array
+# read reverse reads; for every read also in forward array print both reads
+mv "${OUTDIR}/${BASENAME}_forw.fastq" "${OUTDIR}/tmp.${BASENAME}_forw.fastq"
+mv "${OUTDIR}/${BASENAME}_rev.fastq" "${OUTDIR}/tmp.${BASENAME}_rev.fastq"
+
+${GAWK} -v forw="${OUTDIR}/${BASENAME}_forw.fastq" -v rev="${OUTDIR}/${BASENAME}_rev.fastq" -v statsfile="${STATS}" ' 
+BEGIN { OFS="\t" }
+## process forward reads first
+(NR==FNR) && (NR%4==1) {
+  # set readID for current read
+  readID=$1
+}
+(NR==FNR) {
+  # store 4 fastq lines in array with current readID
+  # weird indexing to get the 4 fastq lines in proper order (1,2,3,4) into the array
+  reads[readID][((NR-1)%4)+1]=$0
+  next
+}
+## process reverse reads
+{
+  if ($1 in reads) {
+    # readID of reverse reads is in array with forward reads print both forward and reverse read sets
+    for (i=1; i<=4; i++) {
+      print reads[$1][i] >> forw
+    }
+    # print current reverse read to rev file
+    print $0 >> rev
+    toread=3
+    while (toread-- > 0) {
+      getline
+      print $0 >> rev
+    }
+    totalReads++
+  }
+}
+END {
+  # print total readcount to stats file
+  printf ("trimmedReadCount\t%d\n", totalReads) >> statsfile
+}
+' ${OUTDIR}/tmp.${BASENAME}_forw.fastq ${OUTDIR}/tmp.${BASENAME}_rev.fastq
+# delete tmp fastq files
+# rm -f ${OUTDIR}/tmp.${BASENAME}_forw.fastq ${OUTDIR}/tmp.${BASENAME}_rev.fastq
 
 # remove all reads which are $MIN_READ_LENGTH basepairs or shorter
 ##################################################################
@@ -295,12 +365,11 @@ REV="${OUTDIR}/${BASENAME}_rev.fastq.tmp"
 FORW_FLTR="${OUTDIR}/${BASENAME}_forw.fastq"
 REV_FLTR="${OUTDIR}/${BASENAME}_rev.fastq"
 INFO_FORW="${OUTDIR}/${BASENAME}_forw.info"
-STATS="${OUTDIR}/${BASENAME}.stats"
 
 mv $FORW_FLTR $FORW
 mv $REV_FLTR $REV
 
-${GAWK} -v file1=${FORW}  -v file2=${REV} -v out1=${FORW_FLTR} -v out2=${REV_FLTR} -v info=${INFO_FORW} -v min_length=${MIN_READ_LENGTH} '
+${GAWK} -v file1=${FORW}  -v file2=${REV} -v out1=${FORW_FLTR} -v out2=${REV_FLTR} -v min_length=${MIN_READ_LENGTH} '
   BEGIN {
     OFS="\n"
     FS="\t"
@@ -319,7 +388,8 @@ ${GAWK} -v file1=${FORW}  -v file2=${REV} -v out1=${FORW_FLTR} -v out2=${REV_FLT
     }
     print "removed "excl" paired-end reads for which either forward or reverse read were "min_length"bp or shorter\n";
     print incl" reads passed this filter\n\n";
-  }' > ${STATS}
+    printf ("lengthFilteredReadCount\t%d\n\n", incl);
+  }' >> ${STATS}
 # delete temporary fastq files
 rm -f *fastq.tmp
 echo "finished filtered read on length"
