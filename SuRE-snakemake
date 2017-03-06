@@ -5,11 +5,13 @@ include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/
 
 # copy all parameters (for readability)
 # CODE_BASE         = config["CODE_BASE"]
-CODE_BASE         = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
+# CODE_BASE         = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
+CODE_BASE         = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
 cDNA_script       = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
 iPCR_trim_script   = os.path.join(CODE_BASE, "iPCR-trim.bash")
 iPCR_mapOnly_script   = os.path.join(CODE_BASE, "iPCR-map.bash")
 iPCR_bam2bedpe_script   = os.path.join(CODE_BASE, "iPCR-bam2bedpe.bash")
+iPCR_single_QA_script = os.path.join(CODE_BASE, "iPCR-single-QA.bash")
 iPCR_merge_script = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
 merge_all_script  = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
 
@@ -54,7 +56,14 @@ rule all:
     expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
     expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
     os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else [],
-    "bed2coverage.done"
+    "bed2coverage.done",
+    "QA.done"
+
+rule QA:
+  input:
+    expand(os.path.join(iPCR_OUTDIR, "{s}", "iPCR_single_QA.{s}.done"), s=iPCR_SAMPLES.keys())
+  output:
+    temp(touch("QA.done"))
 
 rule cDNA:
   input:
@@ -88,9 +97,11 @@ rule iPCR_trim:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}"),
     cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
+    forwAdaptr=ADPTR_IPCR_FORW_SEQ,
+    revAdaptr=ADPTR_IPCR_REV_SEQ,
     basename="{s}"
   shell:
-    iPCR_trim_script + " -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -c {input}"
+    iPCR_trim_script + " -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -c {input}"
 
 rule iPCR_mapOnly:
   input:
@@ -102,14 +113,12 @@ rule iPCR_mapOnly:
     dir=os.path.join(iPCR_OUTDIR,"{s}"),
     basename="{s}",
     refseq=BOWTIE2_REFSEQ,
-    forwAdaptr=ADPTR_IPCR_FORW_SEQ,
-    revAdaptr=ADPTR_IPCR_REV_SEQ,
     maxInsert=MAX_INSERT_LENGTH
   threads: 
     NCORES
   priority: 50
   shell:
-    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
 
 rule iPCR_bam2bedpe:
   input:
@@ -140,6 +149,23 @@ rule merge_all:
     os.path.join(OUTDIR, "SuRE-counts.txt.gz")
   shell:
     merge_all_script + " -l -i {input.iPCR} -o {OUTDIR} {input.cDNA} {input.plDNA}"
+
+rule iPCR_single_QA:
+  input:
+    os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
+  output:
+    temp(touch(os.path.join(iPCR_OUTDIR, "{s}", "iPCR_single_QA.{s}.done")))
+  params:
+    basename="{s}",
+    outdir=os.path.join(iPCR_OUTDIR,"{s}")
+  shell:
+    iPCR_single_QA_script + " -l -b '{params.basename}' -o '{params.outdir}'"
+
+#rule iPCR_single_QA:
+#  input:
+#    expand(os.path.join(iPCR_OUTDIR, "{s}", "iPCR_single_QA.{s}.done"), s=iPCR_SAMPLES.keys())
+#  output:
+#    temp(touch(os.path.join(iPCR_OUTDIR, "{s}", "iPCR_single_QA.done")))
 
 rule all_cDNA:
   input:
