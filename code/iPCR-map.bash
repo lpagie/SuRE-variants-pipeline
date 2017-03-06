@@ -252,6 +252,9 @@ CMD="(${BOWTIE2} -p ${NCORES} -x ${BOWTIE2_REFSEQ} -1 $FORW -2 $REV -X ${MAX_INS
 
 echo "command to run bowtie = ${CMD}"
 eval "${CMD}"
+# record some stats in file STATS
+nreads=$(cat ${STATS} | gawk '/^[[:digit:]]+.*reads; of these:/{print $1}')
+echo -e "\nalignedReadCount\t${nreads}\n\n" >> ${STATS}
 echo -e "alignment done\n"
 
 ##############################
