@@ -248,7 +248,7 @@ STATS="${OUTDIR}/${BASENAME}.stats"
 
 CMD="(${BOWTIE2} -p ${NCORES} -x ${BOWTIE2_REFSEQ} -1 $FORW -2 $REV -X ${MAX_INSERT_LENGTH} | \
   ${SAMTOOLS} view -b -f2 -u - -o - | \
-  ${SAMTOOLS} sort -n - -o ${BAM} -T ${BAM%.bam}_srt ) 2>> ${STATS}"
+  ${SAMTOOLS} sort -n - -o ${BAM} -@ ${NCORES} -m 2G -T ${BAM%.bam}_srt ) 2>> ${STATS}"
 
 echo "command to run bowtie = ${CMD}"
 eval "${CMD}"
