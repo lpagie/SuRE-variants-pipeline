@@ -1,0 +1,71 @@
+ - iPCR-map.bash: made samtools sort parallel
+ - iPCR-trim.bash: roll back discard-untrimmed
+ - SuRE-snakemake; add iPCR-single-QA rule (+ bugfix)
+ - iPCR-single-QA.bash: 1st commit
+ - iPCR-bam2bedpe.bash: print various statistics
+ - iPCR-map.bash: print simple stats
+ - iPCR-trim.bash: multiple changes
+ - cDNA-plDNA-count-BC.bash; minor
+ - Merge remote-tracking branch 'origin/snakemake' into snakemake
+ - SuRE-snakemake: Implemented bed2coverage
+ - SuRE-snakemake, iPCR-map.bash; bug-fix
+ - added SuRE-snakemake.org
+ - Added Makefile
+ - iPCR-map-BC.bash; deleted
+ - Merge remote-tracking branch 'origin/snakemake' into snakemake
+ - Merge remote-tracking branch 'origin' into snakemake
+ - SuRE-snakemake: added priority
+ - Finished splitting iPCR-processing module
+ - SuRE-snakemake; intermediate commit
+ - code/cDNA: added Q&A
+ - SuRE-snakemake; minor
+ - Merge remote-tracking branch 'origin/snakemake' into snakemake
+ - SuRE-snakemake; various adaptations
+ - SuRE-snakemake; major rewrite
+ - Merge branch 'snakemake' into restrict-fix
+ - merge-iPCR-cDNA-plDNA.bash: minor change
+ - Merge branch 'snakemake' into restrict-fix
+ - merge-iPCR-cDNA-plDNA.bash: bug-fix
+ - Merge branch 'snakemake' into restrict-fix
+ - iPCR-map-BC.bash: extra functionality
+ - merge-iPCR-cDNA-plDNA.bash; bug fixes
+ - snakemake files: for SuRE23
+ - SuRE-test-config.yaml: deleted
+ - snakemake file+config: various
+ - merge-iPCR-cDNA-plDNA.bash: correct too compression
+ - merge-iPCR-cDNA-plDNA.bash: V0.0.2
+ - SuRE-test-config.yaml: various
+ - SuRE-snakemake: added iPCR_merge merge-all
+ - iPCR-merge-bedpe-Filter-BC-multi-pos.bash: V0.0.2
+ - iPCR-map-BC.bash: outfile now basename.bedpe
+ - cDNA-plDNA-count-BC.bash: version 0.0.2
+ - iPCR-map-BC.bash; V0.0.2
+ - gitignore; added SuRE-pipelineOutput
+ - SuRE-test-config.yaml: complete rewrite
+ - SuRE-snakemake: complete rewrite
+ - iPCR-map-BC.bash: major remake
+ - cDNA-plDNA-count-BC.bash: various small bits
+ - iPCR-map-BC.bash: upped version
+ - .gitignore
+ - SuRE-snakemake, SuRE-test-config.yaml
+ - .gitignore
+ - cDNA-plDNA-count-BC.bash;
+ - cDNA-plDNA-count-BC.bash: V0.0.2; single FASTQ
+ - cDNA-plDNA-count-BC.bash: bug fix + feature
+ - cDNA-plDNA-count-BC.bash; various
+ - removed comment
+ - .gitignore; added zip archive
+ - readme.md; added public git repos
+ - .gitignore: added readme.pdf
+ - readme.md; typo's
+ - all bash scripts
+ - deleted cDNA-plDNA-count-BC_160322.bash and iPCR-map-BC_160322.bash
+ - readme.md: more additions
+ - readme.md: more additions
+ - readme.md: some additions
+ - readme.md; test table
+ - added the 4 bash scripts
+ - readme.md; 1st commit
+ - PCR-map-BC_160322.bash; removed 'ls'
+ - PCR-map-BC_160322.bash; removed 'ls'
+ - first commit; scripts + wrapper
