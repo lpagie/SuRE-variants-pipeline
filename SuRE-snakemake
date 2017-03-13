@@ -4,16 +4,17 @@ import os.path
 include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
 
 # copy all parameters (for readability)
-# CODE_BASE         = config["CODE_BASE"]
-# CODE_BASE         = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
-CODE_BASE         = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
-cDNA_script       = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
-iPCR_trim_script   = os.path.join(CODE_BASE, "iPCR-trim.bash")
-iPCR_mapOnly_script   = os.path.join(CODE_BASE, "iPCR-map.bash")
+# CODE_BASE             = config["CODE_BASE"]
+# CODE_BASE             = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
+CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
+cDNA_script             = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
+iPCR_trim_script        = os.path.join(CODE_BASE, "iPCR-trim.bash")
+iPCR_mapOnly_script     = os.path.join(CODE_BASE, "iPCR-map.bash")
 iPCR_bam2bedpe_script   = os.path.join(CODE_BASE, "iPCR-bam2bedpe.bash")
-iPCR_single_QA_script = os.path.join(CODE_BASE, "iPCR-single-QA.bash")
-iPCR_merge_script = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
-merge_all_script  = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
+iPCR_single_QA_script   = os.path.join(CODE_BASE, "iPCR-single-QA.bash")
+iPCR_merge_script       = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
+merge_all_script        = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
+VERSIONFILE             = os.path.join(CODE_BASE, "../", "VERSION")
 
 ADPT_SEQ            = config["ADPT_SEQ"]
 ADPTR_IPCR_FORW_SEQ = config["ADPTR_IPCR_FORW_SEQ"]
@@ -21,6 +22,11 @@ ADPTR_IPCR_REV_SEQ  = config["ADPTR_IPCR_REV_SEQ"]
 BOWTIE2_REFSEQ      = config["BOWTIE2_REFSEQ"]
 MAX_INSERT_LENGTH   = config["MAX_INSERT_LENGTH"]
 NCORES              = config["NCORES"]
+
+# print pipeline VERSION to stdout
+with open(VERSIONFILE, 'r') as myfile:
+    VERSION=myfile.read().replace('\n', '')
+print ("SuRE-seq pipeline version: ", VERSION, "\n\n")
 
 OUTDIR=config["OUTDIR"]
 
