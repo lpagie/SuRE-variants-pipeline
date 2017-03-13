@@ -1,3 +1,7 @@
+Version 0.6.print-version-to-stdout:
+ - SuRE-snakemake: now print version to stdout
+ - CHANGES VERSION bumpversion.sh
+
  - iPCR-map.bash: made samtools sort parallel
  - iPCR-trim.bash: roll back discard-untrimmed
  - SuRE-snakemake; add iPCR-single-QA rule (+ bugfix)
