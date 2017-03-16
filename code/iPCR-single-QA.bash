@@ -162,7 +162,8 @@ statsfile <- paste0(basename,".stats")
 
 statlines <- readLines(statsfile)
 
-statlables <- c("totalReadCount", "trimmedForwReadCount", "trimmedRevReadCount", "trimmedReadCount", "lengthFilteredReadCount", "alignedReadCount", "bedpeFragmentCount", "bedpeFragmentUniqCount")
+# statlables <- c("totalReadCount", "trimmedForwReadCount", "trimmedRevReadCount", "trimmedReadCount", "lengthFilteredReadCount", "alignedReadCount", "bedpeFragmentCount", "bedpeFragmentUniqCount")
+statlables <- c("totalReadCount", "trimmedForwReadCount", "trimmedRevReadCount", "lengthFilteredReadCount", "alignedReadCount", "bedpeFragmentCount", "bedpeFragmentUniqCount")
 
 stats <- vector('integer', length=length(statlables))
 names(stats) <- statlables
