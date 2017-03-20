@@ -160,7 +160,7 @@ rule iPCR_single_QA:
   input:
     os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
   output:
-    temp(touch(os.path.join(iPCR_OUTDIR, "{s}", "iPCR_single_QA.{s}.done")))
+    touch(os.path.join(iPCR_OUTDIR, "{s}", "iPCR_single_QA.{s}.done"))
   params:
     basename="{s}",
     outdir=os.path.join(iPCR_OUTDIR,"{s}")
