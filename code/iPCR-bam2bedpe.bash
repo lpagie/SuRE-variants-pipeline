@@ -428,14 +428,22 @@ FNR==NR{
   a[$1]=substr($0, index($0,$2)); 
   next
 }
-$2==-1 { next; }
-{ 
+{
   # LP140424; trim readIDs differently for NKI formatted readIDs or BGI
   # formatted readIDs
   sub(/\s.*$/,"",$1); # trim readID for NKI format
   sub(/\/1$/,"",$1); # trim readID for bgi format
   # end LP140424
-
+}
+$2==-1 { 
+  # here, the info file indicates the read did not contain an identifiable
+  # barcode. Thus this read should be skipped and removed from the array
+  
+  excl++
+  delete a[$1]
+  next; 
+}
+{ 
   if ($1 in a) {
     BC = $5
     len  = length(BC)
