@@ -48,7 +48,7 @@ LOG="false"
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: ${SCRIPTNAME} -lnbo bedpe1 bedpe2 bedpe3 ..."
+  echo >&2 "usage: ${SCRIPTNAME} -lno bedpe1 bedpe2 bedpe3 ..."
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: name of output directory [required]"
   echo >&2 "  -l: write messages to logfile (OUTDIR/iPCR-merge.log) instead of stdout"
