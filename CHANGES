@@ -1,3 +1,8 @@
+Version 0.8.fix-bam2bedpe-noBC:
+ - iPCR-bam2bedpe.bash: bugfix
+ - iPCR-merge-bedpe-Filter-BC-multi-pos.bash: minor
+ - SuRE-snakemake: minor change
+
 Version 0.7.bugfix_iPCR-single-QA:
  - iPCR-single-QA.bash; small bugfix
 
