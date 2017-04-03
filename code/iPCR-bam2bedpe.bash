@@ -400,7 +400,9 @@ read[last_read, "MD"],
 read[first_read, "XS"],
 read[last_read, "XS"],
 read[first_read, "SEQ"],
-read[last_read, "SEQ"])
+read[last_read, "SEQ"],
+read[first_read, "CIGAR"],
+read[last_read, "CIGAR"])
 }
 ' > ${BEDPE}
 
@@ -495,14 +497,14 @@ sort -S 50% -k1,1 -k2,2n | \
 uniq -c |\
 # reorder columns: move count to 7th column
 # and write to $BEDPE the following columns:
-# chr start end length strand barcode count internal-end internal-start MAPQ MD1 MD2 XS1 XS2 SEQ1 SEQ2
+# chr start end length strand barcode count internal-end internal-start MAPQ MD1 MD2 XS1 XS2 SEQ1 SEQ2 CIGAR1 CIGAR2
 ${GAWK} -v statsfile=${STATS} ' 
 BEGIN{ 
   OFS="\t";
-  print("seqname","start","end","length","strand","barcode","count","end.intr","start.intr","MAPQ","MD.1","MD.2","alt.1","alt.2","seq.1","seq.2");
+  print("seqname","start","end","length","strand","barcode","count","end.intr","start.intr","MAPQ","MD.1","MD.2","alt.1","alt.2","seq.1","seq.2","cigar.1","cigar.2");
 } 
 { 
-  print($2,$3,$4,$4-$3+1,$5,$16,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15)
+  print($2,$3,$4,$4-$3+1,$5,$16,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15,$16,$17)
 } 
 END {
   printf("bedpeFragmentUniqCount\t%d\n\n", NR) >> statsfile
