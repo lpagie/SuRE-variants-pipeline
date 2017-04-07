@@ -368,12 +368,12 @@ BEGIN {
     if ( and(read[1, "FLAG"], flag_readReverseStrand) ) {
       strand="-";
       # read on reverse strand; reverse-complement the sequence
-      read[1, "SEQ"]=RevComp(read[1, "SEQ"]);
+      # read[1, "SEQ"]=RevComp(read[1, "SEQ"]);
     }
   else {
     strand="+";
     # read on reverse strand; reverse-complement the sequence
-    read[2, "SEQ"]=RevComp(read[2, "SEQ"]);
+    # read[2, "SEQ"]=RevComp(read[2, "SEQ"]);
   }
 
   # which read is first on forw strand
