@@ -9,8 +9,8 @@ include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/
 # CODE_BASE             = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
 CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
 
-SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools/"
-PY2                     = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/bin/python2.7"
+SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
+PY2                     = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/bin/python2.7"
 WASP_DIR                = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/src/WASP/"
 
 SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
@@ -196,13 +196,13 @@ rule iPCR_WASP_sort_and_index_bam2:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","map2_sort")
   threads: 
-    NCORES
+    4
   resources:
     ram=100
   shell:
     "mkdir -p '{params.dir}' ; "
-    "SAMTOOLS sort -o {output[0]} -@ {threads} -m 2G {input} -T {output[0]} ; "
-    "SAMTOOLS index {output[0]}"
+    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+    "{SAMTOOLS} index {output[0]}"
 
 
 rule iPCR_WASP_map_bowtie2_paired_end2:
@@ -232,13 +232,13 @@ rule iPCR_WASP_sort_and_index_bam1:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","map1_sort")
   threads: 
-    NCORES
+    4
   resources:
     ram=100
   shell:
     "mkdir -p '{params.dir}' ; "
-    "SAMTOOLS sort -o {output[0]} -@ {threads} -m 2G {input} -T {output[0]} ; "
-    "SAMTOOLS index {output[0]}"
+    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+    "{SAMTOOLS} index {output[0]}"
 
 
 rule iPCR_WASP_map_bowtie2_paired_end1:
@@ -268,11 +268,15 @@ rule iPCR_WASP_merge_bams:
     sort=os.path.join(iPCR_OUTDIR,"{s}","merge","{s}.keep.merge.sort.bam")
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","merge")
+  threads: 
+    4
+  resources:
+    ram=100
   shell:
     "mkdir -p '{params.dir}' ; "
-    "samtools merge {output.merge} {input.keep1} {input.keep2}; "
-    "samtools sort -o {output.sort} {output.merge}; "
-    "samtools index {output.sort}"
+    "{SAMTOOLS} merge {output.merge} {input.keep1} {input.keep2}; "
+    "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G {output.merge} -T {output.sort} ; "
+    "{SAMTOOLS} index {output.sort}"
 
 rule iPCR_mapWASP:
   input:
@@ -282,13 +286,18 @@ rule iPCR_mapWASP:
     sort=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}.keep.merge.rmdup.sort.bam"),
     bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}.bam")
   params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup"),
+    dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup")
+  threads: 
+    4
+  resources:
+    ram=100
   priority: 50
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/mapping/rmdup_pe.py {input} {output.rmdup} ;"
-    "samtools sort -o {output.sort} {output.rmdup} ; "
-    "samtools index {output.sort} ;"
+    "{SAMTOOLS} sort -o {output.sort} {output.rmdup} ; "
+    "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
+    "{SAMTOOLS} index {output.sort} ;"
     "ln -s {output.sort} {output.bamfinal}"
 
 rule iPCR_bam2bedpe:
