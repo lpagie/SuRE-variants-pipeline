@@ -1,5 +1,6 @@
 import glob
 import os.path
+import sys
 
 include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/bed2coverage.rule"
 
@@ -7,6 +8,12 @@ include: "/home/NFS/users/l.pagie/usr/local/src/BvS-snakemakeRules/bed2coverage/
 # CODE_BASE             = config["CODE_BASE"]
 # CODE_BASE             = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
 CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
+
+SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
+PY2                     = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/bin/python2.7"
+WASP_DIR                = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/src/WASP/"
+
+SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
 cDNA_script             = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
 iPCR_trim_script        = os.path.join(CODE_BASE, "iPCR-trim.bash")
 iPCR_mapOnly_script     = os.path.join(CODE_BASE, "iPCR-map.bash")
@@ -16,12 +23,12 @@ iPCR_merge_script       = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-mu
 merge_all_script        = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
 VERSIONFILE             = os.path.join(CODE_BASE, "../", "VERSION")
 
-ADPT_SEQ            = config["ADPT_SEQ"]
-ADPTR_IPCR_FORW_SEQ = config["ADPTR_IPCR_FORW_SEQ"]
-ADPTR_IPCR_REV_SEQ  = config["ADPTR_IPCR_REV_SEQ"]
-BOWTIE2_REFSEQ      = config["BOWTIE2_REFSEQ"]
-MAX_INSERT_LENGTH   = config["MAX_INSERT_LENGTH"]
-NCORES              = config["NCORES"]
+ADPT_SEQ                = config["ADPT_SEQ"]
+ADPTR_IPCR_FORW_SEQ     = config["ADPTR_IPCR_FORW_SEQ"]
+ADPTR_IPCR_REV_SEQ      = config["ADPTR_IPCR_REV_SEQ"]
+BOWTIE2_REFSEQ          = config["BOWTIE2_REFSEQ"]
+MAX_INSERT_LENGTH       = config["MAX_INSERT_LENGTH"]
+NCORES                  = config["NCORES"]
 
 # print pipeline VERSION to stdout
 with open(VERSIONFILE, 'r') as myfile:
@@ -55,7 +62,22 @@ iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
 iPCR_OUTDIR=os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"])
 BEDPE_FILES=expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
 
+if "GID" in config:
+  GID=config["GID"]
+  # SNP_DIR=os.path.join(SNP_DIR, "SNPs_" + GID)
+  SNP_DIR=os.path.join(SNP_DIR, "SNPs")
+  if not(os.path.exists(SNP_DIR)):
+    sys.exit("GID is defined but SNP directory doesn't exist")
+else:
+  GID = None
+  SNP_DIR=""
+
+# print("GID = " + GID)
+print("snp_dir = " + SNP_DIR)
+
 TYPES=["cDNA","plDNA"]
+
+ruleorder: iPCR_mapWASP > iPCR_mapOnly
 rule all:
   input:
 #    [os.path.join(OUTDIR, config[d]["OUTDIR"], s, s+"_trimmed_table.txt.gz") for d in TYPES for s in config[d]["SAMPLES"]],
@@ -125,6 +147,158 @@ rule iPCR_mapOnly:
   priority: 50
   shell:
     iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+
+rule iPCR_WASP_find_SNPs:
+  """find intersecting SNPs using WASP script"""
+  input:
+    # bam=config["output_dir"] + "/map1_sort/{sample}.bam",
+    bam=os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam"),
+    snpdir=SNP_DIR
+  output:
+    fastq1=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.remap.fq1.gz"),
+    fastq2=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.remap.fq2.gz"),
+    keep=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.keep.bam"),
+    remap=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.to.remap.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps")
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{PY2} {WASP_DIR}/mapping/find_intersecting_snps.py "
+    "    --is_paired_end "
+    "    --is_sorted "
+    "    --output_dir '{params.dir}' "
+    "    --snp_dir {input.snpdir} "
+    "    {input.bam}"
+
+# rule iPCR_WASP_rmdup_pe:
+
+rule iPCR_WASP_filter_remapped_reads:
+  """filter reads from second mapping step"""
+  input:
+    to_remap_bam=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.to.remap.bam"),
+    remap_bam=os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}.bam")
+  output:
+    keep_bam=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads","{s}.keep.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads")
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{PY2} {WASP_DIR}/mapping/filter_remapped_reads.py "
+    "  {input.to_remap_bam} {input.remap_bam} {output.keep_bam}"
+
+
+rule iPCR_WASP_sort_and_index_bam2:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","map2","{s}.bam")
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}.bam"),
+    os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}.bam.bai")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","map2_sort")
+  threads: 
+    4
+  resources:
+    ram=100
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+    "{SAMTOOLS} index {output[0]}"
+
+
+rule iPCR_WASP_map_bowtie2_paired_end2:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.remap.fq1.gz"),
+    os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.remap.fq2.gz")
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","map2","{s}.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","map2"),
+    basename="{s}",
+    refseq=BOWTIE2_REFSEQ,
+    maxInsert=MAX_INSERT_LENGTH
+  threads: 
+    NCORES
+  priority: 50
+  shell:
+    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+
+rule iPCR_WASP_sort_and_index_bam1:
+  """sort and index bam generated by first mapping step"""
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam"),
+    os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam.bai")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","map1_sort")
+  threads: 
+    4
+  resources:
+    ram=100
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+    "{SAMTOOLS} index {output[0]}"
+
+
+rule iPCR_WASP_map_bowtie2_paired_end1:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
+    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq") 
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","map1"),
+    basename="{s}",
+    refseq=BOWTIE2_REFSEQ,
+    maxInsert=MAX_INSERT_LENGTH
+  threads: 
+    NCORES
+  priority: 50
+  shell:
+    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+
+rule iPCR_WASP_merge_bams:
+  """merge 'keep' BAM files from mapping steps 1 and 2, then sort and index"""
+  input:
+    keep1=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}.keep.bam"),
+    keep2=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads","{s}.keep.bam")
+  output:
+    merge=os.path.join(iPCR_OUTDIR,"{s}","merge","{s}.keep.merge.bam"),
+    sort=os.path.join(iPCR_OUTDIR,"{s}","merge","{s}.keep.merge.sort.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","merge")
+  threads: 
+    4
+  resources:
+    ram=100
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{SAMTOOLS} merge {output.merge} {input.keep1} {input.keep2}; "
+    "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G {output.merge} -T {output.sort} ; "
+    "{SAMTOOLS} index {output.sort}"
+
+rule iPCR_mapWASP:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}.keep.merge.sort.bam")
+  output:
+    rmdup=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}.keep.merge.rmdup.bam"),
+    sort=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}.keep.merge.rmdup.sort.bam"),
+    bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup")
+  threads: 
+    4
+  resources:
+    ram=100
+  priority: 50
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{PY2} {WASP_DIR}/mapping/rmdup_pe.py {input} {output.rmdup} ;"
+    "{SAMTOOLS} sort -o {output.sort} {output.rmdup} ; "
+    "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
+    "{SAMTOOLS} index {output.sort} ;"
+    "ln -s {output.sort} {output.bamfinal}"
 
 rule iPCR_bam2bedpe:
   input:
