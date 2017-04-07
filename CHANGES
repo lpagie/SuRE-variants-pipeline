@@ -1,3 +1,9 @@
+Version 0.10.WASP_CIGAR_RevComp_combined:
+ - Merge branch 'feature-WASP-aln' into snakemake
+ - iPCR-bam2bedpe.bash; undone RevComp
+ - SuRE-snakemake: added WASP rules
+ - iPCR-bam2bedpe.bash: added CIGAR to output
+
 Version 0.9.implement_WASP_mappingBiasCorrection:
  - SuRE-snakemake, SuRE-config.yaml: WASP
  - SuRE-config.yaml: added GID
