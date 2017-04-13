@@ -36,6 +36,7 @@ with open(VERSIONFILE, 'r') as myfile:
 print ("SuRE-seq pipeline version: ", VERSION, "\n\n")
 
 OUTDIR=config["OUTDIR"]
+OUTDIR=os.path.abspath(OUTDIR)
 
 cDNA_SAMPLES=config["cDNA"]["SAMPLES"]
 if cDNA_SAMPLES is None:
@@ -295,7 +296,6 @@ rule iPCR_mapWASP:
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/mapping/rmdup_pe.py {input} {output.rmdup} ;"
-    "{SAMTOOLS} sort -o {output.sort} {output.rmdup} ; "
     "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
     "{SAMTOOLS} index {output.sort} ;"
     "ln -s {output.sort} {output.bamfinal}"
