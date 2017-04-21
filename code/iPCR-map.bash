@@ -19,6 +19,7 @@
 #   -o: output directory
 #   optional:
 #   -l: write to logfile instead of stdout
+#   -t: statsfile [default: based on basename, in output directory]
 #   -m: max insert length
 #   -b: basename [based on input file name]
 #   -c: if set; do not clean intermediate files
@@ -69,10 +70,13 @@ usage() {
   exit 1;
 }
 
-while getopts "h?f:o:lb:n:m:s:c" opt; do
+while getopts "h?f:o:lb:n:m:s:t:c" opt; do
   case $opt in
     l)
       LOG="true";
+      ;;
+    t)
+      STATS=$OPTARG;
       ;;
     n)
       NCORES=$OPTARG;
@@ -172,6 +176,10 @@ if [ -z ${BASENAME+x} ]; then
   # create BASENAME based on 1st input fastq filename remove ".fastq.*" (or ".fq.*") from filename
   BASENAME=$(basename ${FASTQ_FNAMES[0]} | sed -e 's/.[fF]\(ast\|AST\)\?[qQ].*//')
 fi
+# STATS FILE
+if [ -z ${STATS} ]; then
+  STATS="${OUTDIR}/${BASENAME}.stats"
+fi
 
 ######################################
 # write stdout to stdout or a log file
@@ -244,7 +252,6 @@ echo "starting alignment"
 FORW="${FASTQ_FNAMES[0]}"
 REV="${FASTQ_FNAMES[1]}"
 BAM="${OUTDIR}/${BASENAME}.bam"
-STATS="${OUTDIR}/${BASENAME}.stats"
 
 CMD="(${BOWTIE2} -p ${NCORES} -x ${BOWTIE2_REFSEQ} -1 $FORW -2 $REV -X ${MAX_INSERT_LENGTH} | \
   ${SAMTOOLS} view -b -f2 -u - -o - | \
