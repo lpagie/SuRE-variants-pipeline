@@ -299,8 +299,8 @@ rule iPCR_mapWASP:
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/mapping/rmdup_pe.py {input} {output.rmdup} ;"
-    "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
-    "{SAMTOOLS} index {output.sort} ;"
+    "{SAMTOOLS} sort -n -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
+    #"{SAMTOOLS} index {output.sort} ;"
     "ln -fs $PWD/{output.sort} {output.bamfinal}"
 
 rule iPCR_bam2bedpe:
