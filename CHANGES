@@ -1,3 +1,16 @@
+Version 0.11.WASP_debugged:
+ - Merge tag 'fix-gzipIssues' into snakemake
+ - merge-iPCR-cDNA-plDNA.bash: minor
+ - merge-iPCR-cDNA-plDNA.bash: minor
+ - iPCR-bam2bedpe.bash; bugfix
+ - SuRE-snakemake; small bug-fix
+ - Merge tag 'hotfix-samNameSort-afterWASP' into snakemake
+ - Merge branch 'feature-WASP-aln' into snakemake
+ - SuRE-snakemake, iPCR-map.bash: specify statsfile
+ - SuRE-snakemake; hotfix-samNameSort-afterWASP
+ - Merge branch 'feature-WASP-aln' into snakemake;
+ - SuRE-snakemake: small bugfixes
+
 Version 0.10.WASP_CIGAR_RevComp_combined:
  - Merge branch 'feature-WASP-aln' into snakemake
  - iPCR-bam2bedpe.bash; undone RevComp
