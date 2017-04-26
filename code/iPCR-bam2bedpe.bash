@@ -504,7 +504,7 @@ BEGIN{
   print("seqname","start","end","length","strand","barcode","count","end.intr","start.intr","MAPQ","MD.1","MD.2","alt.1","alt.2","seq.1","seq.2","cigar.1","cigar.2");
 } 
 { 
-  print($2,$3,$4,$4-$3+1,$5,$16,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15,$16,$17)
+  print($2,$3,$4,$4-$3+1,$5,$18,$1,$6,$7,$8,$10,$11,$12,$13,$14,$15,$16,$17)
 } 
 END {
   printf("bedpeFragmentUniqCount\t%d\n\n", NR) >> statsfile
