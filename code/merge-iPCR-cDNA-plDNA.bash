@@ -226,11 +226,12 @@ END {
         # identical barcodes; set count for current iPCR barcode
         lineout[samples[i]] = CNTprev[i]
 
-      if (BCprev[i] > BCipcr)
+      if (BCprev[i] > BCipcr) {
         # previous sample barcode is "larger" than iPCR barcode, therefor
         # current sample does not contain current iPCR barcode; continue to
         # next sample
         continue
+      }
 
       # at this point the previous sample barcode is <= current iPCR barcode;
       # we need to read from the current sample pipe untill the sample barcode
@@ -242,7 +243,7 @@ END {
         status = (pipes[samples[i]]) | getline line
         # checkfile read status; if EOF close this pipe and delete the pipe from array _pipes_
         if (status == 0) {
-        print "in while loop: i="i", sample="samples[i]", pipe="pipes[samples[i]] > "/dev/stderr"
+          # print "in while loop, status==0: i="i", sample="samples[i]", pipe="pipes[samples[i]] > "/dev/stderr"
           close (pipes[samples[i]])
           delete pipes[samples[i]]
           # break from _while(1)_ loop which reads from current sample pipe, to read next sample pipe
@@ -275,6 +276,14 @@ END {
     printf("\n")
   } # end loop _while ((ipcrpipe | getline) > 0)_
   close (ipcr file)
+  # close any pipe left open
+  for (p in pipes) {
+    # print "pipe "p" still open" > "/dev/stderr"
+    # (pipes[p]) | getline > "/dev/stderr"
+    close (pipes[p])
+    delete pipes[p]
+    # print
+  }
 }' | \
   tee >(bzip2 -c > ${OUTPUT_BC}".bz2") | \
   # remove barcode from intermediate output in column 1 (but leave first line intact)
@@ -367,8 +376,10 @@ END {
 } ' | \
 gzip -c > ${OUTPUT}".gz"
 
-# compress some intermediate files
-bzip2 "${OUTDIR}/pos_multi_BC.txt"
+    
+    if [ -f "${OUTDIR}/pos_multi_BC.txt" ]; then
+  bzip2 "${OUTDIR}/pos_multi_BC.txt"
+fi
 
 LINE="finished "${SCRIPTNAME}
 SEPARATOR=$(head -c ${#LINE} </dev/zero | tr '\0' '=')
