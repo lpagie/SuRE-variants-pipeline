@@ -36,7 +36,7 @@ with open(VERSIONFILE, 'r') as myfile:
 print ("SuRE-seq pipeline version: ", VERSION, "\n\n")
 
 OUTDIR=config["OUTDIR"]
-OUTDIR=os.path.abspath(OUTDIR)
+# OUTDIR=os.path.abspath(OUTDIR)
 
 cDNA_SAMPLES=config["cDNA"]["SAMPLES"]
 if cDNA_SAMPLES is None:
