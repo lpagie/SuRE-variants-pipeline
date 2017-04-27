@@ -12,14 +12,15 @@ CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvA
 SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
 PY2                     = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/bin/python2.7"
 WASP_DIR                = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/src/WASP/"
-
 SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
+
 cDNA_script             = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
 iPCR_trim_script        = os.path.join(CODE_BASE, "iPCR-trim.bash")
 iPCR_mapOnly_script     = os.path.join(CODE_BASE, "iPCR-map.bash")
 iPCR_bam2bedpe_script   = os.path.join(CODE_BASE, "iPCR-bam2bedpe.bash")
 iPCR_single_QA_script   = os.path.join(CODE_BASE, "iPCR-single-QA.bash")
 iPCR_merge_script       = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
+split_bedpe_script      = os.path.join(CODE_BASE, "split-bedpe2chr.sh")
 merge_all_script        = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
 VERSIONFILE             = os.path.join(CODE_BASE, "../", "VERSION")
 
@@ -29,6 +30,8 @@ ADPTR_IPCR_REV_SEQ      = config["ADPTR_IPCR_REV_SEQ"]
 BOWTIE2_REFSEQ          = config["BOWTIE2_REFSEQ"]
 MAX_INSERT_LENGTH       = config["MAX_INSERT_LENGTH"]
 NCORES                  = config["NCORES"]
+
+CHR                     = ["chr"+str(i) for i in range(1,23)]+['chrX','chrY','chrM']
 
 # print pipeline VERSION to stdout
 with open(VERSIONFILE, 'r') as myfile:
@@ -60,8 +63,10 @@ else:
   tt={sample:[iPCR_SAMPLES[sample]["R1"], iPCR_SAMPLES[sample]["R2"]] for sample in iPCR_SAMPLES}
 iPCR_SAMPLE2FILES={sample:[iPCR_SAMPLES[sample]["R1"],iPCR_SAMPLES[sample]["R2"]] for sample in iPCR_SAMPLES.keys()}
 iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
-iPCR_OUTDIR=os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"])
-BEDPE_FILES=expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
+iPCR_OUTDIR=os.path.join(OUTDIR, config["iPCR"]["OUTDIR"])
+BEDPE_FILES=expand(os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
+
+print("iPCR_OUTDIR = "+iPCR_OUTDIR)
 
 if "GID" in config:
   GID=config["GID"]
@@ -79,6 +84,7 @@ print("snp_dir = " + SNP_DIR)
 TYPES=["cDNA","plDNA"]
 
 ruleorder: iPCR_mapWASP > iPCR_mapOnly
+ruleorder: iPCR_merge_WASP > iPCR_merge
 rule all:
   input:
 #    [os.path.join(OUTDIR, config[d]["OUTDIR"], s, s+"_trimmed_table.txt.gz") for d in TYPES for s in config[d]["SAMPLES"]],
@@ -153,7 +159,6 @@ rule iPCR_mapOnly:
 rule iPCR_WASP_find_SNPs:
   """find intersecting SNPs using WASP script"""
   input:
-    # bam=config["output_dir"] + "/map1_sort/{sample}.bam",
     bam=os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam"),
     snpdir=SNP_DIR
   output:
@@ -171,8 +176,6 @@ rule iPCR_WASP_find_SNPs:
     "    --output_dir '{params.dir}' "
     "    --snp_dir {input.snpdir} "
     "    {input.bam}"
-
-# rule iPCR_WASP_rmdup_pe:
 
 rule iPCR_WASP_filter_remapped_reads:
   """filter reads from second mapping step"""
@@ -204,8 +207,9 @@ rule iPCR_WASP_sort_and_index_bam2:
   shell:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
-    "{SAMTOOLS} index {output[0]}"
-
+    "{SAMTOOLS} index {output[0]} ; "
+    "sleep 15 ; "
+    "touch -c {output} ; "
 
 rule iPCR_WASP_map_bowtie2_paired_end2:
   input:
@@ -241,8 +245,9 @@ rule iPCR_WASP_sort_and_index_bam1:
   shell:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
-    "{SAMTOOLS} index {output[0]}"
-
+    "{SAMTOOLS} index {output[0]} ; "
+    # "sleep 15 ; "
+    # "touch -c {output} ; "
 
 rule iPCR_WASP_map_bowtie2_paired_end1:
   input:
@@ -322,6 +327,45 @@ rule iPCR_merge:
     os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
   shell:
     iPCR_merge_script + " -l -o {iPCR_OUTDIR} {input}"
+
+rule iPCR_preMerge_WASP:
+  input:
+     BEDPE_FILES
+  output:
+    os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe.txt.gz")
+  params:
+    dir=os.path.join(iPCR_OUTDIR, "bed-annot")
+  shell:
+    iPCR_merge_script + " -l -o '{params.dir}' {input}"
+
+rule iPCR_splitSort_WASP:
+  input:
+    os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe.txt.gz")
+  output:
+    expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}.txt.gz"),c=CHR)
+  shell:
+    split_bedpe_script + " '{input}'"
+
+rule iPCR_annot_WASP:
+  input:
+    bedpe=os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}.txt.gz"),
+    snpdir=SNP_DIR
+  output:
+    os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz")
+  resources:
+    raw=25
+  shell:
+    "{PY2} {WASP_DIR}/mapping/annotate_bedpe_LP170331.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}"
+
+rule iPCR_merge_WASP:
+  input:
+    # [os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz") for c in CHR]
+    expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c= CHR)
+  output:
+    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
+  shell:
+    "zcat {input} | gzip -c > {output}"
+    # iPCR_merge_script + " -l -o {iPCR_OUTDIR} {input}"
 
 rule merge_all:
   input:
