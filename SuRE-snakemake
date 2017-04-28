@@ -32,6 +32,7 @@ MAX_INSERT_LENGTH       = config["MAX_INSERT_LENGTH"]
 NCORES                  = config["NCORES"]
 
 CHR                     = ["chr"+str(i) for i in range(1,23)]+['chrX','chrY','chrM']
+# CHR                     = ["chr12", "chr18"]
 
 # print pipeline VERSION to stdout
 with open(VERSIONFILE, 'r') as myfile:
@@ -246,8 +247,8 @@ rule iPCR_WASP_sort_and_index_bam1:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
     "{SAMTOOLS} index {output[0]} ; "
-    # "sleep 15 ; "
-    # "touch -c {output} ; "
+    "sleep 15 ; "
+    "touch -c {output} ; "
 
 rule iPCR_WASP_map_bowtie2_paired_end1:
   input:
@@ -359,7 +360,6 @@ rule iPCR_annot_WASP:
 
 rule iPCR_merge_WASP:
   input:
-    # [os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz") for c in CHR]
     expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c= CHR)
   output:
     os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
