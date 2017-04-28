@@ -192,7 +192,7 @@ NR==1 {
 }
 END {
   # print header to stdout 
-  printf ("chr\tstart\tend\tstrand\tiPCR")
+  printf ("chr\tstart\tend\tstrand\tSNPrelpos\tSNPbase\tSNPvar\tSNPabspos\tSNPidx\tiPCR")
   for (i=1; i<=length(samples); i++)
     printf("\t%s", samples[i])
   printf("\n")
@@ -210,6 +210,11 @@ END {
     lineout["START"] = $2
     lineout["END"] = $3
     lineout["STRAND"] = $5
+    lineout["SNPrelpos"] = $19
+    lineout["SNPbase"] = $20
+    lineout["SNPabspos"] = $21
+    lineout["SNPvar"] = $22
+    lineout["SNPidx"] = $23
 
     # iterate over all open pipes
     for (i in samples) {
@@ -268,9 +273,10 @@ END {
 
     # all sample pipes for current iPCR barcode have been processed
     # print record to stdout
-    printf("%s\t%s\t%d\t%d\t%s\t%d", 
-      BCipcr, lineout["CHR"], lineout["START"], lineout["END"], lineout["STRAND"], lineout["iPCR"])
-    # for (i in samples) 
+    printf("%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%d", 
+      BCipcr, lineout["CHR"], lineout["START"], lineout["END"], lineout["STRAND"], 
+      lineout["SNPrelpos"], lineout["SNPbase"], lineout["SNPvar"], lineout["SNPabspos"],
+      lineout["SNPidx"], lineout["iPCR"])
     for (i=1; i<=length(samples); i++)
       printf("\t%d", lineout[samples[i]])
     printf("\n")
@@ -314,12 +320,12 @@ function PROC_PREV_POS(     maxcnt, maxline, BCs, BCmax) {
   }
   else {
     split(PREVLINE[1], outline)
-    for (i=5; i<length(outline); i++)
+    for (i=10; i<=length(outline); i++)
       outline[i] = 0
     for (line in PREVLINE) {
       print PREVLINE[line] > POS_MULTI_BC_FNAME
       split(PREVLINE[line], w)
-      for (i=5; i<length(outline); i++)
+      for (i=10; i<=length(outline); i++)
 	outline[i] = outline[i] + w[i]
     }
     # print the merged output line
@@ -333,17 +339,6 @@ function PROC_PREV_POS(     maxcnt, maxline, BCs, BCmax) {
 BEGIN {
   FS="\t"
   OFS="\t"
-
-  COLLENGTH=4
-  COLMAPQ=10
-  COLBC=6
-  COLCHR=1
-  COLS = 2
-  COLE = 3
-  COLSTR = 5
-  COLCNT = 7
-
-  # POS_MULTI_BC_FNAME = "iPCR/pos_multi_BC.txt"
 }
 
 NR == 1 { # read and print header from input
