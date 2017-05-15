@@ -1,3 +1,14 @@
+Version 0.12.pipeline-per-CHR:
+ - Merge tag 'feature-split-CHR' into snakemake
+ - merge-iPCR-cDNA-plDNA.bash: output files specified
+ - iPCR-merge-bedpe-Filter-BC-multi-pos.bash: output bedpe explicitly given on command line
+ - code/iPCR-bam2bedpe.bash; minor change
+ - SuRE-snakemake: feature: process per chromosome
+ - split-bedpe2chr.sh; new
+ - merge-iPCR-cDNA-plDNA.bash: include SNPannot
+ - SuRE-snakemake; minor edits
+ - SuRE-snakemake: start implement SNPannot
+
 Version 0.11.WASP_debugged:
  - Merge tag 'fix-gzipIssues' into snakemake
  - merge-iPCR-cDNA-plDNA.bash: minor
