@@ -22,6 +22,7 @@
 #     -i: name of iPCR bedpe file
 #     -o: output directory
 #   optional:
+#     -d: output data file [default: SuRE-counts.txt.gz]
 #     -l: log-filename [stdout]
 #     -n: number of cores used in parallel processes (10)
 #     -h: print usage
@@ -54,10 +55,11 @@ LOG="false"
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: SCRIPTNAME -io[lnh] cDNA-input-files plDNA-input-files"
+  echo >&2 "usage: SCRIPTNAME -io[dlnh] cDNA-input-files plDNA-input-files"
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: directory for generated count-table files  [required]"
   echo >&2 "  -i: iPCR bedpe filename [required]"
+  echo >&2 "  -d: set name of outputfile [default: SuRE-counts.txt.gz]"
   echo >&2 "  -l: set name of logfile [default: stdout]"
   echo >&2 "  -n: number of cores used where possible [default: 10]"
   echo >&2 "  -h: print this message"
@@ -65,7 +67,7 @@ usage() {
   exit 1;
 }
 
-while getopts "h?s:o:i:ln:" opt; do
+while getopts "h?s:o:i:ln:d:" opt; do
   case $opt in
     l)
       LOG=true;
@@ -78,6 +80,9 @@ while getopts "h?s:o:i:ln:" opt; do
       ;;
     o)
       OUTDIR=$OPTARG;
+      ;;
+    d)
+      OUTPUT=$OPTARG;
       ;;
     h)
       # execute next code block
@@ -115,14 +120,20 @@ if [ -z ${OUTDIR+x} ]; then echo "option -o not set (directory for output files)
 if [ ! -d ${OUTDIR} ]; then mkdir -p ${OUTDIR}; echo "making directory \"${OUTDIR}\" for output"; echo ""; fi
 # make path to OUTDIR absolute
 OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
-OUTPUT="${OUTDIR}/SuRE-counts.txt"
-OUTPUT_BC="${OUTDIR}/SuRE-counts_BC.txt"
+# set OUTPUT files if not set by user
+if [ -z ${OUTPUT+x} ]; then 
+  OUTPUT="${OUTDIR}/SuRE-counts.txt.gz"
+  OUTPUT_BC="${OUTDIR}/SuRE-counts_BC.txt.bz2"
+else
+  OUTPUT_BC=${OUTPUT%.txt.gz}"_BC.txt.bz2"
+  [ $OUTPUT == $OUTPUT_BC ] && (echo "can't create filename for OUTPUT_BC (extension for OUTPUT is not .txt.gz). aborting)"; exit 1;)
+fi
 
 ######################################
 # write stdout to stdout or a log file
 ######################################
 if [ ${LOG} == "true" ]; then 
-  LOG="${OUTDIR}/mergeAll.log"
+  LOG=${OUTPUT%.txt.gz}"_mergeAll.log"
   exec 1>>${LOG}
 fi
 
@@ -291,7 +302,7 @@ END {
     # print
   }
 }' | \
-  tee >(bzip2 -c > ${OUTPUT_BC}".bz2") | \
+  tee >(bzip2 -c > ${OUTPUT_BC}) | \
   # remove barcode from intermediate output in column 1 (but leave first line intact)
   # cut -f 2- - | \
   ${GAWK} ' BEGIN {OFS="\t"} 
@@ -306,7 +317,7 @@ END {
     { 
       print $0 | "sort -S 50%  -k1.4,1V -k2,2g -k3,3g"
     }' | \
-${GAWK} -v POS_MULTI_BC_FNAME="${OUTDIR}/pos_multi_BC.txt" '
+${GAWK} -v POS_MULTI_BC_FNAME="${OUTPUT%.txt.gz}_pos_multi_BC.txt" '
 # awk script to merge counts for duplicated positions
 # the input is position sorted: CHR/START/END/STRAND/IPCR/SAMPLES.....
 # for every input line a position-label is created as a concatenation of the fields chr/start/end/strand
@@ -369,10 +380,13 @@ NR > 2 {
 END {
   PROC_PREV_POS()
 } ' | \
-gzip -c > ${OUTPUT}".gz"
+gzip -c > ${OUTPUT}
 
     
-    if [ -f "${OUTDIR}/pos_multi_BC.txt" ]; then
+if [ -f "${OUTDIR}/pos_multi_BC.txt" ]; then
+  if [ -f "${OUTDIR}/pos_multi_BC.txt.bz2" ]; then
+    mv -f "${OUTDIR}/pos_multi_BC.txt.bz2" "${OUTDIR}/pos_multi_BC.txt.bz2.prev"
+  fi
   bzip2 "${OUTDIR}/pos_multi_BC.txt"
 fi
 

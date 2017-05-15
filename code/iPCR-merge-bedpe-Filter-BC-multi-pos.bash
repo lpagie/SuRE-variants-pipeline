@@ -14,6 +14,7 @@
 #   required:
 #     -o: output directory
 #   optional:
+#     -b: bedpe output file [default: OUTDIR/iPCR-combined-bedpe.txt.gz]
 #     -l: write to logfile instead of stdout
 #     -n number of cores to use (default 10)
 #   The iPCR bedpe filenames are given as last argument to the script
@@ -48,16 +49,17 @@ LOG="false"
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 USAGE=
 usage() {
-  echo >&2 "usage: ${SCRIPTNAME} -lno bedpe1 bedpe2 bedpe3 ..."
+  echo >&2 "usage: ${SCRIPTNAME} -lbno bedpe1 bedpe2 bedpe3 ..."
   echo >&2 "OPTIONS:"
   echo >&2 "  -o: name of output directory [required]"
+  echo >2& "  -b: bedpe output file [default: OUTDIR/iPCR-combined-bedpe.txt.gz]"
   echo >&2 "  -l: write messages to logfile (OUTDIR/iPCR-merge.log) instead of stdout"
   echo >&2 "  -n: number of cores used where possible [10]"
   echo >&2 ""
   exit 1;
 }
 
-while getopts "h?ln:o:" opt; do
+while getopts "h?ln:o:b:" opt; do
   case $opt in
     l)
       LOG="true";
@@ -67,6 +69,9 @@ while getopts "h?ln:o:" opt; do
       ;;
     o)
       OUTDIR=$OPTARG;
+      ;;
+    b)
+      OUTPUT=$OPTARG;
       ;;
     \?)
       usage
@@ -133,7 +138,14 @@ if [ ! -d ${OUTDIR} ]; then mkdir -p ${OUTDIR}; echo "making directory \"${OUTDI
 # make path to OUTDIR absolute
 OUTDIR="`cd \"$OUTDIR\" 2>/dev/null && pwd || echo \"$OUTDIR\"`"
 # set OUTPUT file
-OUTPUT="${OUTDIR}/iPCR-combined-bedpe.txt.gz"
+if [ -z ${OUTDIR+x} ]; then
+  OUTPUT="${OUTDIR}/iPCR-combined-bedpe.txt.gz"
+fi
+# make path to OUTPUT absolute
+D=`dirname "${OUTPUT}"`
+B=`basename "${OUTPUT}"`
+DD="`cd $D 2>/dev/null && pwd || echo $D`"
+OUTPUT="$DD/$B"
 
 ######################################
 # write stdout to stdout or a log file
