@@ -520,7 +520,7 @@ else
   gzip *.tmp
 fi
 # compress bedpe file
-gzip *bedpe
+gzip ${BEDPE}
 
 echo "finished processing ${BASENAME} files"
 
