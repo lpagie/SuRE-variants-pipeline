@@ -373,7 +373,7 @@ rule iPCR_annot_WASP:
   resources:
     ram=25
   shell:
-    "{PY2} {WASP_DIR}/mapping/annotate_bedpe_LP170331.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}"
+    "{PY2} {WASP_DIR}/mapping/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}"
 
 rule iPCR_merge_WASP:
   input:
