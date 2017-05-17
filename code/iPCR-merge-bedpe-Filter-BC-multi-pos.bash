@@ -217,6 +217,8 @@ ${CAT} $BEDPE_FNAME | \
     COLCNT = 7
     COLSEQ1 = 15
     COLSEQ2 = 16
+    COLCIGAR1 = 17
+    COLCIGAR2 = 18
   }
   NR == 1 {
     PREVBC      = $COLBC
@@ -271,6 +273,8 @@ ${CAT} $BEDPE_FNAME | \
       	    if (w[COLMAPQ] > mapq) {
       	      mapq = w[COLMAPQ]
       	      readseq = w[COLSEQ1]"\t"w[COLSEQ2]
+	      cigar1 = w[COLCIGAR1]
+	      cigar2 = w[COLCIGAR2]
       	    }
       	  }
       	}
@@ -280,6 +284,8 @@ ${CAT} $BEDPE_FNAME | \
       	split(readseq, s, "\t")
       	w[COLSEQ1] = s[1]
       	w[COLSEQ2] = s[2]
+	w[COLCIGAR1] = cigar1
+	w[COLCIGAR2] = cigar2
       	# print a line composed of w
       	l=w[1]
       	for (i=2; i<=length(w); i++)
