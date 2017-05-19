@@ -1,3 +1,7 @@
+Version 0.13.fix-annotReverseReadCIGAR:
+ - iPCR-merge-bedpe-Filter-BC-multi-pos.bash; copy correct cigars
+ - SuRE-snakemake: hotfix, annotBedPE
+
 Version 0.12.pipeline-per-CHR:
  - Merge tag 'feature-split-CHR' into snakemake
  - merge-iPCR-cDNA-plDNA.bash: output files specified
