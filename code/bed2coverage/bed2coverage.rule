@@ -48,6 +48,8 @@ CODE_BASE_BED2COV=os.path.join(CODE_BASE, "bed2coverage/")
 
 BED2COVERAGE = os.path.join(CODE_BASE_BED2COV, "_bed2coverage.bash")
 
+# iPCR_TARGETS=expand(os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz"), c=CHR_TARGET+CHR_AVAIL)
+
 OUTDIR=config["OUTDIR"]
 ASSEMBLY=config["ASSEMBLY"]
 # determine files for output
@@ -56,12 +58,15 @@ EXTFLAT=[".covflat.bw", ".covflat.plus.bw", ".covflat.minus.bw"]
 if config['cDNA']["SAMPLES"] is None:
   OUTFILES_cDNA=[];
 else:
-  OUTFILES_cDNA  = [os.path.join(OUTDIR, config["cDNA"]["OUTDIR"], s, s+e) for s in config['cDNA']["SAMPLES"] for e in EXT]
+#   OUTFILES_cDNA  = [os.path.join(OUTDIR, config["cDNA"]["OUTDIR"], s, s+e) for s in config['cDNA']["SAMPLES"] for e in EXT]
+  OUTFILES_cDNA = expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_{c}{e}"), s=config['cDNA']["SAMPLES"], c=CHR_TARGET+CHR_AVAIL, e=EXT+EXTFLAT)
 if config["plDNA"]["SAMPLES"] is None:
   OUTFILES_plDNA=[]
 else:
-  OUTFILES_plDNA  = [os.path.join(OUTDIR, config["plDNA"]["OUTDIR"], s, s+e) for s in config['plDNA']["SAMPLES"] for e in EXT+EXTFLAT]
-OUTFILES_iPCR = [os.path.join(OUTDIR, config["iPCR"]["OUTDIR"], "iPCR"+e) for e in (EXT+EXTFLAT)]
+#  OUTFILES_plDNA  = [os.path.join(OUTDIR, config["plDNA"]["OUTDIR"], s, s+e) for s in config['plDNA']["SAMPLES"] for e in EXT+EXTFLAT]
+  OUTFILES_plDNA = expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_{c}{e}"), s=config['plDNA']["SAMPLES"], c=CHR_TARGET+CHR_AVAIL, e=EXT+EXTFLAT)
+# OUTFILES_iPCR = [os.path.join(OUTDIR, config["iPCR"]["OUTDIR"], "iPCR"+e) for e in (EXT+EXTFLAT)]
+OUTFILES_iPCR = expand(os.path.join(iPCR_OUTDIR, "iPCR_{c}{e}"), c=CHR_TARGET+CHR_AVAIL, e=EXT+EXTFLAT)
 if OUTFILES_iPCR is None:
   OUTFILES_iPCR=[]
 OUTFILES      = OUTFILES_cDNA + OUTFILES_plDNA + OUTFILES_iPCR
@@ -79,6 +84,24 @@ rule bed2coverage:
     OUTFILES
   output:
     temp(touch("bed2coverage.done"))
+
+rule _bed2coverage_chr:
+  input:
+    os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz")
+  output:
+    all="{type}/{sample}/{sample}_{c}.cov.bw",
+    plus="{type}/{sample}/{sample}_{c}.cov.plus.bw",
+    minus="{type}/{sample}/{sample}_{c}.cov.minus.bw",
+    flat="{type}/{sample}/{sample}_{c}.covflat.bw",
+    flatplus="{type}/{sample}/{sample}_{c}.covflat.plus.bw",
+    flatminus="{type}/{sample}/{sample}_{c}.covflat.minus.bw"
+  params:
+    s="{sample}"
+  resources:
+    ram=50
+  shell:
+    " export BED2COVERAGE_EXE={CODE_BASE_BED2COV}'bed2coverage' ; "
+    " {BED2COVERAGE} {input} {output.all} {output.plus} {output.minus} {params.s} {CHROMSIZES} ; "
 
 rule _bed2coverage:
   input:
