@@ -1,0 +1,3 @@
+command:
+
+time -v nice -19 snakemake --cores 10 --resources ram=100 -nprs SuRE-snakemake --config-file=SuRE.yaml all &> output.log
