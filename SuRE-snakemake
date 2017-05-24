@@ -13,7 +13,8 @@ CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvA
 
 SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
 PY2                     = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/bin/python2.7"
-WASP_DIR                = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/src/WASP/"
+# WASP_DIR                = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/src/WASP/"
+WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
 SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
 SPLITBAM                = "/home/NFS/users/l.pagie/usr/src/bamUtil/bin/bam splitChromosome "
 
@@ -181,7 +182,7 @@ rule iPCR_WASP_find_SNPs:
     dir=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps")
   shell:
     "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/mapping/find_intersecting_snps.py "
+    "{PY2} {WASP_DIR}/find_intersecting_snps.py "
     "    --is_paired_end "
     "    --is_sorted "
     "    --output_dir '{params.dir}' "
@@ -199,7 +200,7 @@ rule iPCR_WASP_filter_remapped_reads:
     dir=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads")
   shell:
     "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/mapping/filter_remapped_reads.py "
+    "{PY2} {WASP_DIR}/filter_remapped_reads.py "
     "  {input.to_remap_bam} {input.remap_bam} {output.keep_bam}"
 
 
@@ -321,7 +322,7 @@ rule iPCR_mapWASP:
   priority: 50
   shell:
     "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/mapping/rmdup_pe.py {input} {output.rmdup} ;"
+    "{PY2} {WASP_DIR}/rmdup_pe.py {input} {output.rmdup} ;"
     "{SAMTOOLS} sort -n -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
     #"{SAMTOOLS} index {output.sort} ;"
     "ln -fs $PWD/{output.sort} {output.bamfinal}"
@@ -373,7 +374,7 @@ rule iPCR_annot_WASP:
   resources:
     ram=25
   shell:
-    "{PY2} {WASP_DIR}/mapping/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}"
+    "{PY2} {WASP_DIR}/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}"
 
 rule iPCR_merge_WASP:
   input:
