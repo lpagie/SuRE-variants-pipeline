@@ -1,3 +1,6 @@
+# vim: syntax=python expandtab
+# coding: utf-8
+
 import glob
 import os.path
 import sys
@@ -35,8 +38,7 @@ CHR_ALL                 = ["chr"+str(i) for i in range(1,23)]+['chrX','chrY','ch
 CHR_TARGET              = config["CHR_TARGET"]
 print("CHR_TARGET=")
 print(CHR_TARGET)
-
-include: os.path.join(CODE_BASE, "bed2coverage/bed2coverage.rule")
+CHR_AVAIL=list(compress(CHR_ALL, [os.path.isfile(f) for f in expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c=CHR_ALL)]))
 
 # print pipeline VERSION to stdout
 with open(VERSIONFILE, 'r') as myfile:
@@ -67,10 +69,6 @@ iPCR_SAMPLE2FILES={sample:[iPCR_SAMPLES[sample]["R1"],iPCR_SAMPLES[sample]["R2"]
 iPCR_FASTQ_DIR=config["iPCR"]["FASTQ_DIR"]
 iPCR_OUTDIR=os.path.join(OUTDIR, config["iPCR"]["OUTDIR"])
 BEDPE_FILES=expand(os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
-#print(CHR_ALL)
-#print(iPCR_OUTDIR)
-#print(expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c=CHR_ALL))
-CHR_AVAIL=list(compress(CHR_ALL, [os.path.isfile(f) for f in expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c=CHR_ALL)]))
 iPCR_TARGETS=expand(os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz"), c=CHR_TARGET+CHR_AVAIL)
 
 print("iPCR_OUTDIR = "+iPCR_OUTDIR)
@@ -93,6 +91,8 @@ print("snp_dir = " + SNP_DIR)
 
 # TYPES=["cDNA","plDNA"]
 
+include: os.path.join(CODE_BASE, "bed2coverage/bed2coverage.rule")
+
 ruleorder: iPCR_mapWASP > iPCR_mapOnly
 ruleorder: iPCR_merge_WASP > iPCR_merge
 rule all:
@@ -102,7 +102,7 @@ rule all:
     expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
 #    os.path.join(OUTDIR, "SuRE-counts.txt.gz") if len(iPCR_SAMPLES) > 0 else [],
     iPCR_TARGETS,
-#    "bed2coverage.done",
+     "bed2coverage.done",
 #    "QA.done"
 
 rule QA:
