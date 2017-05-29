@@ -6,6 +6,9 @@ cDNA-counts
 SuRE-pipelineOutput
 SuRE-snakemake.org
 
+# subdirectory code/conda; it will be created in the 'target' directory by 'make'
+code/conda
+
 # subdirectory code/WASP since it is a git repos on its own (maybe should have used 'git submodules')
 code/WASP
 
