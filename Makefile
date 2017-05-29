@@ -1,8 +1,12 @@
+SHELL = /bin/bash
 PREFIX = $(HOME)/usr/local
+
+CONDAROOT = /home/NFS/users/l.pagie/usr/local/src/miniconda2
 
 .PHONY: install
 install: subdirs SuRE-snakemake
 	sed -i.org 's~^\(CODE_BASE\s\+=\s\+\).*~\1"'"$${PWD}/code"'"~g' SuRE-snakemake
+	source $(CONDAROOT)/bin/activate && conda env create -p code/conda -f code/conda-wasp-environment.yml && source deactivate
 
 SUBDIRS = code/bed2coverage
 
