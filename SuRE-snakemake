@@ -16,9 +16,9 @@ CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvA
 SAMTOOLS                = "samtools"
 WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
 # PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " " + os.path.join(CONDA_BASE, "python2.7 ")
-PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " python2.7 ")
+PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " python2.7 "
 SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
-# SPLITBAM                = "/home/NFS/users/l.pagie/usr/src/bamUtil/bin/bam splitChromosome "
+SPLITBAM                = "bam splitChromosome "
 
 cDNA_script             = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
 iPCR_trim_script        = os.path.join(CODE_BASE, "iPCR-trim.bash")
