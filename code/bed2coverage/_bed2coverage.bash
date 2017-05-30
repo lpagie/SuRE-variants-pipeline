@@ -10,9 +10,9 @@ OUTMINUS=$4
 COLUMN=$5
 CHROMSIZES=$6
 
-tmpfileall=$(mktemp wig.XXXXXX)
-tmpfileplus=$(mktemp wig.XXXXXX)
-tmpfileminus=$(mktemp wig.XXXXXX)
+tmpfileall=$(mktemp wig.all.XXXXXX)
+tmpfileplus=$(mktemp wig.plus.XXXXXX)
+tmpfileminus=$(mktemp wig.minus.XXXXXX)
 
 # trick to enforce waiting for subprocesses created by tee
 # from https://unix.stackexchange.com/questions/351780/wait-for-bash-subshells
@@ -49,18 +49,14 @@ zcat ${INPUT} |\
 # wait for all subprocesses to finish
 for (( i=0;i<6;i++ )); do read <${waitfifo}; done
 
-#parallel --dryrun --colsep ' ' --verbose echo {1} ${CHROMSIZES} {2} ::: $tmpfileall $OUTALL $tmpfileplus $OUTPLUS $tmpfileminus $OUTMINUS
-# parallel ${WIG2BIGWIG} {= $arg[1] ${CHROMSIZES} $arg[2]  =} ::: $tmpfileall $tmpfileplus $tmpfileminus :::+ $OUTALL $OUTPLUS $OUTMINUS
-#parallel ${WIG2BIGWIG} {= $arg[1] ${CHROMSIZES} $arg[2]  =} ::: flat.$tmpfileall flat.$tmpfileplus flat.$tmpfileminus :::+ $OUTALL $OUTPLUS $OUTMINUS
-
 echo "$tmpfileall ${CHROMSIZES} $OUTALL
 $tmpfileminus ${CHROMSIZES} $OUTMINUS
-$tmpfileplus ${CHROMSIZES} $OUTPLUS " |\
+$tmpfileplus ${CHROMSIZES} $OUTPLUS" |\
   parallel --colsep ' ' ${WIG2BIGWIG}
 
 echo "flat.$tmpfileall ${CHROMSIZES} ${OUTALL/.cov./.covflat.}
 flat.$tmpfileminus ${CHROMSIZES} ${OUTMINUS/.cov./.covflat.}
-flat.$tmpfileplus ${CHROMSIZES} ${OUTPLUS/.cov./.covflat.} " |\
+flat.$tmpfileplus ${CHROMSIZES} ${OUTPLUS/.cov./.covflat.}" |\
   parallel --colsep ' ' ${WIG2BIGWIG}
 
 rm -f $tmpfileall $tmpfileminus $tmpfileplus
