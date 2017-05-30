@@ -37,8 +37,9 @@ SCRIPTNAME=iPCR-single-QA.bash
 VERSION=0.0.1 # YYMMDD
 
 # EXTERNAL SOFTWARE
-GAWK=/usr/bin/gawk
-R=/usr/bin/R
+GAWK=gawk
+# R=/usr/bin/R
+R=R
 
 # GLOBAL VARIABLES
 NCORES=1
