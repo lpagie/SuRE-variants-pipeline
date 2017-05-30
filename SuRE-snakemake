@@ -8,13 +8,11 @@ from itertools import compress
 
 # copy all parameters (for readability)
 # CODE_BASE             = config["CODE_BASE"]
-# CODE_BASE             = "/home/NFS/users/l.pagie/usr/local/lib/snakemake/code"
 CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
 
 SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
-PY2                     = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/bin/python2.7"
-# WASP_DIR                = "/home/NFS/users/l.pagie/usr/local/src/miniconda2/envs/wasp/src/WASP/"
 WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
+PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " " + os.path.join(CODE_BASE, "conda/bin/python2.7 ")
 SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
 SPLITBAM                = "/home/NFS/users/l.pagie/usr/src/bamUtil/bin/bam splitChromosome "
 
