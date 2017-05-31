@@ -39,8 +39,8 @@ VERSION=0.0.2 # YYMMDD
 # GAWK=/usr/bin/gawk
 GAWK=gawk
 # CUTADAPT=/home/NFS/users/l.pagie/vanSteensel/src/cutadapt-stable_1.2.1/bin//cutadapt
-# CUTADAPT=cutadapt
-CUTADAPT=/home/NFS/users/l.pagie/python_virt_env_cutadapt/bin/cutadapt
+# CUTADAPT=/home/NFS/users/l.pagie/python_virt_env_cutadapt/bin/cutadapt
+CUTADAPT=cutadapt
 
 # GLOBAL VARIABLES
 LOG="false"

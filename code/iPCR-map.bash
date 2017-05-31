@@ -40,9 +40,10 @@ SCRIPTNAME=iPCR-map.bash
 VERSION=0.0.1 # YYMMDD
 
 # EXTERNAL SOFTWARE
-GAWK=/usr/bin/gawk
+GAWK=gawk
 BOWTIE2=bowtie2
-SAMTOOLS=$HOME/vanSteensel/bin/samtools
+# SAMTOOLS=$HOME/vanSteensel/bin/samtools
+SAMTOOLS=samtools
 
 # GLOBAL VARIABLES
 NCORES=10

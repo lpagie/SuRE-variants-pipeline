@@ -37,8 +37,10 @@ SCRIPTNAME=iPCR-trim.bash
 VERSION=0.0.1 # YYMMDD
 
 # EXTERNAL SOFTWARE
-GAWK=/usr/bin/gawk
-CUTADAPT=/home/NFS/users/l.pagie/python_virt_env_cutadapt/bin/cutadapt
+# GAWK=/usr/bin/gawk
+GAWK=gawk
+# CUTADAPT=/home/NFS/users/l.pagie/python_virt_env_cutadapt/bin/cutadapt
+CUTADAPT=cutadapt
 
 # GLOBAL VARIABLES
 NCORES=1

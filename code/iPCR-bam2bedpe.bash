@@ -32,8 +32,9 @@ SCRIPTNAME=iPCR-bam2bedpe.bash
 VERSION=0.0.1 # YYMMDD
 
 # EXTERNAL SOFTWARE
-GAWK=/usr/bin/gawk
-SAMTOOLS=$HOME/vanSteensel/bin/samtools
+GAWK=gawk
+# SAMTOOLS=$HOME/vanSteensel/bin/samtools
+SAMTOOLS=samtools
 
 # GLOBAL VARIABLES
 CLEAN=true;
