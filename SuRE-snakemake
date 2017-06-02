@@ -8,7 +8,7 @@ from itertools import compress
 
 # copy all parameters (for readability)
 # CODE_BASE             = config["CODE_BASE"]
-CODE_BASE               = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
+CODE_BASE               = "/DATA/home/ludo/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
 # CONDA_BASE              = os.path.join(CODE_BASE, "conda/bin")
 
 # SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
