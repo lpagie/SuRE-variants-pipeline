@@ -70,12 +70,10 @@ OUTFILES_iPCR = expand(os.path.join(iPCR_OUTDIR, "iPCR_{c}{e}"), c=CHR_TARGET+CH
 if OUTFILES_iPCR is None:
   OUTFILES_iPCR=[]
 OUTFILES      = OUTFILES_cDNA + OUTFILES_plDNA + OUTFILES_iPCR
-print("OUTFILES=", OUTFILES, "\n")
-
-# OUTDIR="/home/NFS/research_projects/van_steensel_lab/l.pagie/LP161222_SuRE40/"+OUTDIR
+# print("OUTFILES=", OUTFILES, "\n")
 
 if ASSEMBLY == "hg19":
-  CHROMSIZES="/home/NFS/users/l.pagie/data/genomes/hg19/hg19.chrom.sizes"
+  CHROMSIZES="/home/ludo/DATA/local/data/genomes/hg19/hg19.chrom.sizes"
 elif ASSEMBLY == "criGri1":
   CHROMSIZES="/home/NFS/users/l.pagie/data/genomes/criGri1/criGri1.chrom.sizes"
 

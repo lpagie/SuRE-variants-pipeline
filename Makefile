@@ -1,13 +1,6 @@
-SHELL = /bin/bash
-PREFIX = $(HOME)/usr/local
-
-# CONDAROOT = /home/NFS/users/l.pagie/usr/local/src/miniconda2
-CONDAROOT = /DATA/home/ludo/miniconda3/
-
 .PHONY: install
-install: subdirs SuRE-snakemake
+install: check subdirs SuRE-snakemake
 	sed -i.org 's~^\(CODE_BASE\s\+=\s\+\).*~\1"'"$${PWD}/code"'"~g' SuRE-snakemake
-	source $(CONDAROOT)/bin/activate && conda env create -n SuRE-pipeline -f code/conda-wasp-environment.yml && source deactivate
 
 SUBDIRS = code/bed2coverage
 
@@ -18,3 +11,9 @@ subdirs: $(SUBDIRS)
 $(SUBDIRS): 
 	$(MAKE) -C $@
 
+check:
+	@type conda >/dev/null 2>&1|| { \
+		echo "Conda is required to build this application"; \
+		exit 1; \
+	}
+	conda env update -n SuRE-pipeline -f code/conda-wasp-environment.yml 
