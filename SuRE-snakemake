@@ -5,10 +5,12 @@ import glob
 import os.path
 import sys
 from itertools import compress
+from os import listdir
+import fnmatch
 
 # copy all parameters (for readability)
 # CODE_BASE             = config["CODE_BASE"]
-CODE_BASE               = "/DATA/home/ludo/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
+CODE_BASE               = "/home/ludo/DATA/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161128_Sure_pipeline_snakemake/code"
 # CONDA_BASE              = os.path.join(CODE_BASE, "conda/bin")
 
 # SAMTOOLS                = "/home/NFS/users/l.pagie/vanSteensel/bin/samtools"
@@ -17,7 +19,7 @@ SAMTOOLS                = "samtools"
 WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
 # PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " " + os.path.join(CONDA_BASE, "python2.7 ")
 PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " python2.7 "
-SNP_DIR                 = "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
+SNP_DIR                 = "/DATA/home/ludo/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
 SPLITBAM                = "bam splitChromosome "
 
 cDNA_script             = os.path.join(CODE_BASE, "cDNA-plDNA-count-BC.bash")
@@ -28,6 +30,7 @@ iPCR_single_QA_script   = os.path.join(CODE_BASE, "iPCR-single-QA.bash")
 iPCR_merge_script       = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-multi-pos.bash")
 split_bedpe_script      = os.path.join(CODE_BASE, "split-bedpe2chr.sh")
 merge_all_script        = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
+add_homozygous_baseIdentities_script = os.path.join(CODE_BASE, "add-homozygous-baseIndentities.bash")
 VERSIONFILE             = os.path.join(CODE_BASE, "../", "VERSION")
 
 ADPT_SEQ                = config["ADPT_SEQ"]
@@ -81,6 +84,7 @@ print(iPCR_TARGETS)
 
 if "GID" in config:
   GID=config["GID"]
+  VCF_DIR=SNP_DIR
   # SNP_DIR=os.path.join(SNP_DIR, "SNPs_" + GID)
   SNP_DIR=os.path.join(SNP_DIR, "SNPs")
   if not(os.path.exists(SNP_DIR)):
@@ -248,8 +252,8 @@ rule iPCR_WASP_sort_and_index_bam1:
   input:
     os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
   output:
-    expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}.bam"),c=CHR_TARGET),
-    expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}.bam.bai"),c=CHR_TARGET),
+    os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam"),
+    os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam.bai"),
     expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}_{c}.bam"),c=CHR_TARGET),
     expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}_{c}.bam.bai"),c=CHR_TARGET)
 #    os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam"),
@@ -267,8 +271,8 @@ rule iPCR_WASP_sort_and_index_bam1:
     "{SAMTOOLS} index {output[0]} ; "
     "{SPLITBAM} --in {output[0]} --out '{params.noext}'; "
     "for f in '{params.noext}'chr*.bam; do {SAMTOOLS} index $f; done ; "
-    "sleep 15 ; "
-    "touch -c {output} ; "
+    #"sleep 15 ; "
+    #"touch -c {output} ; "
 
 rule iPCR_WASP_map_bowtie2_paired_end1:
   input:
@@ -389,14 +393,19 @@ rule iPCR_merge_WASP:
 
 rule merge_all:
   input:
-    # iPCR=os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz"),
     iPCR=os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"),
     cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
-    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
+    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
+    vcf=lambda wildcards: [os.path.join(VCF_DIR,f) for f in listdir(VCF_DIR) if fnmatch.fnmatch(f, "ALL."+wildcards.c+".phase3_shapeit2_mvncall_integrated_*.20130502.genotypes_HG02601_NA18983_HG01241_HG03464_LP170414.vcf.gz")]
   output:
-    os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz")
+    out=os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz"), 
+    tmp=os.path.join(OUTDIR, "SuRE-counts_{c}.inf.txt.gz")
+  params:
+    gid=GID
   shell:
-    merge_all_script + " -l -i {input.iPCR} -o {OUTDIR} -d {output} {input.cDNA} {input.plDNA}"
+    merge_all_script + " -l -i {input.iPCR} -o {OUTDIR} -d {output.out} {input.cDNA} {input.plDNA} ; "+add_homozygous_baseIdentities_script + " {input.vcf} {output.out} '{params.gid}' | gzip -c > {output.tmp}; "
+    # " echo bla"
+    # "mv -f {output}.tmp {output}"
 
 rule iPCR_single_QA:
   input:
