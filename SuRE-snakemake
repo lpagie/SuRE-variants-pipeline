@@ -144,35 +144,18 @@ rule iPCR_trim:
   input:
     lambda wildcards: [os.path.join(iPCR_FASTQ_DIR, f) for f in iPCR_SAMPLE2FILES[wildcards.s]]
   output:
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq"),
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.info")
+    os.path.join(iPCR_OUTDIR,"{s}","fastq1","{s}_forw.fastq.gz"), 
+    os.path.join(iPCR_OUTDIR,"{s}","fastq1","{s}_rev.fastq.gz"),
+    os.path.join(iPCR_OUTDIR,"{s}","fastq1","{s}_forw.info")
   params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}"),
+    dir=os.path.join(iPCR_OUTDIR,"{s}", "fastq1"),
     cutmotif=lambda wildcards: iPCR_SAMPLES[wildcards.s]["CUTMOTIF"],
     forwAdaptr=ADPTR_IPCR_FORW_SEQ,
     revAdaptr=ADPTR_IPCR_REV_SEQ,
     basename="{s}"
   shell:
-    iPCR_trim_script + " -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -c {input}"
-
-rule iPCR_mapOnly:
-  input:
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq") 
-  output:
-    os.path.join(iPCR_OUTDIR,"{s}","{s}.bam")
-  params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}"),
-    stats=os.path.join(iPCR_OUTDIR,"{s}","{s}.stats"),
-    basename="{s}",
-    refseq=BOWTIE2_REFSEQ,
-    maxInsert=MAX_INSERT_LENGTH
-  threads: 
-    NCORES
-  priority: 50
-  shell:
-    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+    iPCR_trim_script + " -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -c {input}; "
+    "gzip {output[0]} {output[1]}"
 
 rule iPCR_WASP_find_SNPs:
   """find intersecting SNPs using WASP script"""
@@ -180,25 +163,21 @@ rule iPCR_WASP_find_SNPs:
     bam=os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}_{c}.bam"),
     snpdir=SNP_DIR
   output:
-    fastq1=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.remap.fq1.gz"),
-    fastq2=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.remap.fq2.gz"),
-    keep=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.keep.bam"),
-    remap=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.to.remap.bam")
+    fastq1=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}_forw.fastq.gz"),
+    fastq2=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}_rev.fastq.gz"),
+    keep=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}.keep.bam"),
+    remap=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}.to.remap.bam")
   params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps")
+    dir=os.path.join(iPCR_OUTDIR,"{s}","fastq2")
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/find_intersecting_snps.py "
-    "    --is_paired_end "
-    "    --is_sorted "
-    "    --output_dir '{params.dir}' "
-    "    --snp_dir {input.snpdir} "
-    "    {input.bam}"
+    "--is_paired_end --is_sorted --output_dir '{params.dir}' --snp_dir {input.snpdir} {input.bam}"
 
 rule iPCR_WASP_filter_remapped_reads:
   """filter reads from second mapping step"""
   input:
-    to_remap_bam=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.to.remap.bam"),
+    to_remap_bam=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}.to.remap.bam"),
     remap_bam=os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}_{c}.bam")
   output:
     keep_bam=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads","{s}_{c}.keep.bam")
@@ -209,15 +188,24 @@ rule iPCR_WASP_filter_remapped_reads:
     "{PY2} {WASP_DIR}/filter_remapped_reads.py "
     "  {input.to_remap_bam} {input.remap_bam} {output.keep_bam}"
 
-
-rule iPCR_WASP_sort_and_index_bam2:
+rule iPCR_splitBAM:
   input:
-    os.path.join(iPCR_OUTDIR,"{s}","map2","{s}_{c}.bam")
+    os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam")
   output:
-    os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}_{c}.bam"),
-    os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}_{c}.bam.bai")
+    expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}_{c}.bam"),c=CHR_TARGET)
   params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","map2_sort")
+    noext=os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}_")
+  shell:
+    "{SPLITBAM} --in {input} --out '{params.noext}'; "
+    "for f in '{params.noext}'chr*.bam; do {SAMTOOLS} index $f; done ; "
+
+rule iPCR_WASP_sort_and_index_bam:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","map{p}","{b}.bam")
+  output:
+    os.path.join(iPCR_OUTDIR,"{s}","map{p}_sort","{b}.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","map{p}_sort")
   threads: 
     4
   resources:
@@ -226,19 +214,18 @@ rule iPCR_WASP_sort_and_index_bam2:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
     "{SAMTOOLS} index {output[0]} ; "
-    "sleep 15 ; "
-    "touch -c {output} ; "
 
-rule iPCR_WASP_map_bowtie2_paired_end2:
+
+rule iPCR_WASP_map_bowtie2_paired_end:
   input:
-    os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.remap.fq1.gz"),
-    os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.remap.fq2.gz")
+    os.path.join(iPCR_OUTDIR,"{s}","fastq{p}","{b}_forw.fastq.gz"),
+    os.path.join(iPCR_OUTDIR,"{s}","fastq{p}","{b}_rev.fastq.gz")
   output:
-    os.path.join(iPCR_OUTDIR,"{s}","map2","{s}_{c}.bam")
+    os.path.join(iPCR_OUTDIR,"{s}","map{p}","{b}.bam")
   params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","map2"),
-    stats=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.stats"),
-    basename="{s}_{c}",
+    dir=os.path.join(iPCR_OUTDIR,"{s}","map{p}"),
+    stats=os.path.join(iPCR_OUTDIR,"{s}","{b}.stats"),
+    basename="{b}",
     refseq=BOWTIE2_REFSEQ,
     maxInsert=MAX_INSERT_LENGTH
   threads: 
@@ -247,59 +234,14 @@ rule iPCR_WASP_map_bowtie2_paired_end2:
   shell:
     iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
 
-rule iPCR_WASP_sort_and_index_bam1:
-  """sort and index bam generated by first mapping step"""
-  input:
-    os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
-  output:
-    os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam"),
-    os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam.bai"),
-    expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}_{c}.bam"),c=CHR_TARGET),
-    expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}_{c}.bam.bai"),c=CHR_TARGET)
-#    os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam"),
-#    os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}.bam.bai")
-  params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","map1_sort"),
-    noext=os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}_")
-  threads: 
-    4
-  resources:
-    ram=100
-  shell:
-    "mkdir -p '{params.dir}' ; "
-    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
-    "{SAMTOOLS} index {output[0]} ; "
-    "{SPLITBAM} --in {output[0]} --out '{params.noext}'; "
-    "for f in '{params.noext}'chr*.bam; do {SAMTOOLS} index $f; done ; "
-    #"sleep 15 ; "
-    #"touch -c {output} ; "
-
-rule iPCR_WASP_map_bowtie2_paired_end1:
-  input:
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq") 
-  output:
-    os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
-  params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","map1"),
-    stats=os.path.join(iPCR_OUTDIR,"{s}","{s}.stats"),
-    basename="{s}",
-    refseq=BOWTIE2_REFSEQ,
-    maxInsert=MAX_INSERT_LENGTH
-  threads: 
-    NCORES
-  priority: 50
-  shell:
-    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
-
 rule iPCR_WASP_merge_bams:
   """merge 'keep' BAM files from mapping steps 1 and 2, then sort and index"""
   input:
-    keep1=os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.keep.bam"),
+    keep1=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}.keep.bam"),
     keep2=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads","{s}_{c}.keep.bam")
   output:
     merge=os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.bam"),
-    sort=os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
+    # sort=os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","merge")
   threads: 
@@ -309,15 +251,13 @@ rule iPCR_WASP_merge_bams:
   shell:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} merge {output.merge} {input.keep1} {input.keep2}; "
-    "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G {output.merge} -T {output.sort} ; "
-    "{SAMTOOLS} index {output.sort}"
+    # "{SAMTOOLS} sort -o {output.sort} -@ {threads} -m 20G {output.merge} -T {output.sort} ; "
+    # "{SAMTOOLS} index {output.sort}"
 
 rule iPCR_mapWASP:
   input:
     os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
   output:
-    rmdup=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.bam"),
-    sort=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.sort.bam"),
     bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup")
@@ -327,12 +267,8 @@ rule iPCR_mapWASP:
     ram=100
   priority: 50
   shell:
-    "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/rmdup_pe.py {input} {output.rmdup} ;"
-    "{SAMTOOLS} sort -n -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
-    #"{SAMTOOLS} index {output.sort} ;"
-    "ln -fs $PWD/{output.sort} {output.bamfinal}"
-
+    "{SAMTOOLS} sort -n -o {output} -@ {threads} -m 20G  {input[0]} -T {input[1]}; "
+      
 rule iPCR_bam2bedpe:
   input:
     os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam"),
@@ -483,4 +419,122 @@ rule clean_iPCR_map_2nd:
   shell:
     "rm -f '{params.dir}'/*tmp.gz '{params.dir}'/*bam '{params.dir}'/*info* '{params.dir}'/*fastq*"
 
+
+rule iPCR_mapWASP:
+  input:
+    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
+  output:
+    rmdup=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.bam"),
+    sort=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.sort.bam"),
+    bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
+  params:
+    dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup")
+  threads: 
+    4
+  resources:
+    ram=100
+  priority: 50
+  shell:
+    "mkdir -p '{params.dir}' ; "
+    "{PY2} {WASP_DIR}/rmdup_pe.py {input} {output.rmdup} ;"
+    "{SAMTOOLS} sort -n -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
+    #"{SAMTOOLS} index {output.sort} ;"
+    "ln -fs $PWD/{output.sort} {output.bamfinal}"
+
+#rule iPCR_WASP_sort_and_index_bam1:
+#  """sort and index bam generated by first mapping step"""
+#  input:
+#    os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
+#  output:
+#    os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR,"{s}","map1_sort"),
+#  threads: 
+#    4
+#  resources:
+#    ram=100
+#  shell:
+#    "mkdir -p '{params.dir}' ; "
+#    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+#    "{SAMTOOLS} index {output[0]} ; "
+
+#rule iPCR_WASP_sort_and_index_bam2:
+#  input:
+#    os.path.join(iPCR_OUTDIR,"{s}","map2","{s}_{c}.bam")
+#  output:
+#    os.path.join(iPCR_OUTDIR,"{s}","map2_sort","{s}_{c}.bam")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR,"{s}","map2_sort")
+#  threads: 
+#    4
+#  resources:
+#    ram=100
+#  shell:
+#    "mkdir -p '{params.dir}' ; "
+#    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+#    "{SAMTOOLS} index {output[0]} ; "
+
+#rule iPCR_WASP_map_bowtie2_paired_end1:
+#  input:
+#    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
+#    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq") 
+#  output:
+#    os.path.join(iPCR_OUTDIR,"{s}","map1","{s}.bam")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR,"{s}","map1"),
+#    stats=os.path.join(iPCR_OUTDIR,"{s}","{s}.stats"),
+#    basename="{s}",
+#    refseq=BOWTIE2_REFSEQ,
+#    maxInsert=MAX_INSERT_LENGTH
+#  threads: 
+#    NCORES
+#  priority: 50
+#  shell:
+#    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+#
+#rule iPCR_WASP_map_bowtie2_paired_end2:
+#  input:
+#    os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.remap.fq1.gz"),
+#    os.path.join(iPCR_OUTDIR,"{s}","find_intersecting_snps","{s}_{c}.remap.fq2.gz")
+#  output:
+#    os.path.join(iPCR_OUTDIR,"{s}","map2","{s}_{c}.bam")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR,"{s}","map2"),
+#    stats=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.stats"),
+#    basename="{s}_{c}",
+#    refseq=BOWTIE2_REFSEQ,
+#    maxInsert=MAX_INSERT_LENGTH
+#  threads: 
+#    5
+#  priority: 50
+#  shell:
+#    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+
+#rule iPCR_mapOnly:
+#  input:
+#    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.fastq"), 
+#    os.path.join(iPCR_OUTDIR,"{s}","{s}_rev.fastq") 
+#  output:
+#    os.path.join(iPCR_OUTDIR,"{s}","{s}.bam")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR,"{s}"),
+#    stats=os.path.join(iPCR_OUTDIR,"{s}","{s}.stats"),
+#    basename="{s}",
+#    refseq=BOWTIE2_REFSEQ,
+#    maxInsert=MAX_INSERT_LENGTH
+#  threads: 
+#    NCORES
+#  priority: 50
+#  shell:
+#    iPCR_mapOnly_script + "  -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
+
+#rule iPCR_merge_WASP:
+#  input:
+#    expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c= CHR_TARGET)
+#  output:
+#    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
+#  shell:
+#    "zcat {input} | gzip -c > {output}"
+#    # iPCR_merge_script + " -l -o {iPCR_OUTDIR} {input}"
+#
 
