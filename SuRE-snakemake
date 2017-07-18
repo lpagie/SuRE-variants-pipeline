@@ -100,8 +100,9 @@ print("snp_dir = " + SNP_DIR)
 
 include: os.path.join(CODE_BASE, "bed2coverage/bed2coverage.rule")
 
-ruleorder: iPCR_mapWASP > iPCR_mapOnly
-ruleorder: iPCR_merge_WASP > iPCR_merge
+#ruleorder: iPCR_mapWASP > iPCR_mapOnly
+#ruleorder: iPCR_merge_WASP > iPCR_merge
+
 rule all:
   input:
 #    [os.path.join(OUTDIR, config[d]["OUTDIR"], s, s+"_trimmed_table.txt.gz") for d in TYPES for s in config[d]["SAMPLES"]],
@@ -168,11 +169,14 @@ rule iPCR_WASP_find_SNPs:
     keep=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}.keep.bam"),
     remap=os.path.join(iPCR_OUTDIR,"{s}","fastq2","{s}_{c}.to.remap.bam")
   params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","fastq2")
+    dir=os.path.join(iPCR_OUTDIR,"{s}","fastq2"),
+    bname="{s}_{c}"
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/find_intersecting_snps.py "
-    "--is_paired_end --is_sorted --output_dir '{params.dir}' --snp_dir {input.snpdir} {input.bam}"
+    "--is_paired_end --is_sorted --output_dir '{params.dir}' --snp_dir {input.snpdir} {input.bam}; "
+    "mv '{params.dir}'/'{params.bname}'.remap.fq1.gz {output[0]}; "
+    "mv '{params.dir}'/'{params.bname}'.remap.fq2.gz {output[1]}; "
 
 rule iPCR_WASP_filter_remapped_reads:
   """filter reads from second mapping step"""
@@ -256,7 +260,7 @@ rule iPCR_WASP_merge_bams:
 
 rule iPCR_mapWASP:
   input:
-    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
+    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.bam")
   output:
     bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
   params:
@@ -267,7 +271,7 @@ rule iPCR_mapWASP:
     ram=100
   priority: 50
   shell:
-    "{SAMTOOLS} sort -n -o {output} -@ {threads} -m 20G  {input[0]} -T {input[1]}; "
+    "{SAMTOOLS} sort -n -o {output} -@ {threads} -m 20G  {input} -T {input}; "
       
 rule iPCR_bam2bedpe:
   input:
@@ -387,60 +391,60 @@ rule clean:
   input:
     "cDNA_cleaned", "plDNA_cleaned", "iPCR_cleaned"
 
-rule clean_cDNA:
-  input:
-    expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_info.gz"), s=cDNA_SAMPLES.keys())
-  output:
-    temp(touch("cDNA_cleaned"))
-  shell:
-    "rm -f {input}"
-
-rule clean_plDNA:
-  input:
-    expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_info.gz"), s=plDNA_SAMPLES.keys())
-  output:
-    temp(touch("plDNA_cleaned"))
-  shell:
-    "rm -f {input}"
-
-
-
-rule clean_iPCR_map:
-  input:
-    expand("{s}_iPCR_cleaned", s=iPCR_SAMPLES.keys())
-
-rule clean_iPCR_map_2nd:
-  input:
-     os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
-  params:
-    dir=os.path.join(iPCR_OUTDIR, "{s}")
-  output:
-    temp(touch("{s}_iPCR_cleaned"))
-  shell:
-    "rm -f '{params.dir}'/*tmp.gz '{params.dir}'/*bam '{params.dir}'/*info* '{params.dir}'/*fastq*"
-
-
-rule iPCR_mapWASP:
-  input:
-    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
-  output:
-    rmdup=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.bam"),
-    sort=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.sort.bam"),
-    bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
-  params:
-    dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup")
-  threads: 
-    4
-  resources:
-    ram=100
-  priority: 50
-  shell:
-    "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/rmdup_pe.py {input} {output.rmdup} ;"
-    "{SAMTOOLS} sort -n -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
-    #"{SAMTOOLS} index {output.sort} ;"
-    "ln -fs $PWD/{output.sort} {output.bamfinal}"
-
+#rule clean_cDNA:
+#  input:
+#    expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_info.gz"), s=cDNA_SAMPLES.keys())
+#  output:
+#    temp(touch("cDNA_cleaned"))
+#  shell:
+#    "rm -f {input}"
+#
+#rule clean_plDNA:
+#  input:
+#    expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_info.gz"), s=plDNA_SAMPLES.keys())
+#  output:
+#    temp(touch("plDNA_cleaned"))
+#  shell:
+#    "rm -f {input}"
+#
+#
+#
+#rule clean_iPCR_map:
+#  input:
+#    expand("{s}_iPCR_cleaned", s=iPCR_SAMPLES.keys())
+#
+#rule clean_iPCR_map_2nd:
+#  input:
+#     os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR, "{s}")
+#  output:
+#    temp(touch("{s}_iPCR_cleaned"))
+#  shell:
+#    "rm -f '{params.dir}'/*tmp.gz '{params.dir}'/*bam '{params.dir}'/*info* '{params.dir}'/*fastq*"
+#
+#
+#rule iPCR_mapWASP:
+#  input:
+#    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.sort.bam")
+#  output:
+#    rmdup=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.bam"),
+#    sort=os.path.join(iPCR_OUTDIR,"{s}","rmdup","{s}_{c}.keep.merge.rmdup.sort.bam"),
+#    bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
+#  params:
+#    dir=os.path.join(iPCR_OUTDIR,"{s}","rmdup")
+#  threads: 
+#    4
+#  resources:
+#    ram=100
+#  priority: 50
+#  shell:
+#    "mkdir -p '{params.dir}' ; "
+#    "{PY2} {WASP_DIR}/rmdup_pe.py {input} {output.rmdup} ;"
+#    "{SAMTOOLS} sort -n -o {output.sort} -@ {threads} -m 20G  {output.rmdup} -T {output.sort}; "
+#    #"{SAMTOOLS} index {output.sort} ;"
+#    "ln -fs $PWD/{output.sort} {output.bamfinal}"
+#
 #rule iPCR_WASP_sort_and_index_bam1:
 #  """sort and index bam generated by first mapping step"""
 #  input:
