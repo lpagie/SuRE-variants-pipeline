@@ -7,6 +7,12 @@
 
 GAWK=gawk
 
+# check number of arguments
+if [[ $# -ne 3 ]]; then
+    (>&2 echo "expected 3 arguments, got $# instead. Aborting")
+    exit 0
+fi
+
 VCF=$1
 SURE=$2
 SAMPLE=$3
