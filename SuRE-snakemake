@@ -52,14 +52,14 @@ if cDNA_SAMPLES is None:
   cDNA_SAMPLES={}
 cDNA_FASTQ_DIR=config["cDNA"]["FASTQ_DIR"]
 cDNA_OUTDIR=os.path.join(config["OUTDIR"], config["cDNA"]["OUTDIR"])
-cDNA_COUNTS=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys())
+cDNA_TARGETS=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys())
 
 plDNA_SAMPLES=config["plDNA"]["SAMPLES"]
 if plDNA_SAMPLES is None:
   plDNA_SAMPLES={}
 plDNA_FASTQ_DIR=config["plDNA"]["FASTQ_DIR"]
 plDNA_OUTDIR=os.path.join(config["OUTDIR"], config["plDNA"]["OUTDIR"])
-plDNA_COUNTS=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
+plDNA_TARGETS=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys())
 
 iPCR_SAMPLES=config["iPCR"]["SAMPLES"]
 if iPCR_SAMPLES is None:
@@ -89,10 +89,8 @@ include: os.path.join(CODE_BASE, "bed2coverage/bed2coverage.rule")
 
 rule all:
   input:
-    expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
-    expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
-    iPCR_TARGETS,
-     "bed2coverage.done",
+    cDNA_TARGETS, plDNA_TARGETS, iPCR_TARGETS,
+    "bed2coverage.done"
 #    "QA.done"
 
 rule QA:
