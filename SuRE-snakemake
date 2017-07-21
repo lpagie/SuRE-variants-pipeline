@@ -34,7 +34,10 @@ ADPTR_IPCR_REV_SEQ      = config["ADPTR_IPCR_REV_SEQ"]
 BOWTIE2_REFSEQ          = config["BOWTIE2_REFSEQ"]
 MAX_INSERT_LENGTH       = config["MAX_INSERT_LENGTH"]
 NCORES                  = config["NCORES"]
-OUTDIR=config["OUTDIR"]
+OUTDIR                  = config["OUTDIR"]
+ALLELE_SPECIFIC         = config["ALLELE_SPECIFIC"]
+SNP_DIR                 = config["SNP_DIR"]
+GID                     = config["GID"]
 CHR_TARGET              = config["CHR_TARGET"]
 
 CHR_ALL                 = ["chr"+str(i) for i in range(1,23)]+['chrX','chrY','chrM']
@@ -70,18 +73,22 @@ iPCR_OUTDIR=os.path.join(OUTDIR, config["iPCR"]["OUTDIR"])
 BEDPE_FILES=expand(os.path.join(iPCR_OUTDIR, "{s}", "{s}.bedpe.gz"), s=iPCR_SAMPLES.keys())
 iPCR_TARGETS=expand(os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz"), c=CHR_TARGET+CHR_AVAIL)
 
-if "GID" in config:
-  GID=config["GID"]
+if (ALLELE_SPECIFIC is None) or (ALLELE_SPECIFIC == 0):
+  GID = None
+  SNP_DIR=""
+  VCF_DIR=""
+  print("processing in non-allele specific manner")
+else:
+  if GID is None:
+    sys.exit("ALLELE_SPECIFIC processing requested but no GID specified")
+  if SNP_DIR is None:
+    sys.exit("ALLELE_SPECIFIC processing requested but no SNP_DIR specified")
   VCF_DIR=SNP_DIR
   SNP_DIR=os.path.join(SNP_DIR, "SNPs")
   if not(os.path.exists(SNP_DIR)):
     sys.exit("GID is defined but SNP directory doesn't exist")
   print("reading SNPs from " + SNP_DIR)
   print("reading VCF from " + VCF_DIR)
-else:
-  GID = None
-  SNP_DIR=""
-  VCF_DIR=""
 
 # TYPES=["cDNA","plDNA"]
 
@@ -89,8 +96,8 @@ include: os.path.join(CODE_BASE, "bed2coverage/bed2coverage.rule")
 
 rule all:
   input:
-    cDNA_TARGETS, plDNA_TARGETS, iPCR_TARGETS,
-    "bed2coverage.done"
+    cDNA_TARGETS, plDNA_TARGETS, iPCR_TARGETS
+#    "bed2coverage.done"
 #    "QA.done"
 
 rule QA:
@@ -136,7 +143,7 @@ rule iPCR_trim:
     basename="{s}"
   shell:
     "{iPCR_trim_script} -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -c {input}; "
-    "gzip {output[0]} {output[1]}"
+    "gzip '{params.dir}'/*fastq"
 
 rule iPCR_WASP_find_SNPs:
   """find intersecting SNPs using WASP script"""
@@ -172,6 +179,7 @@ rule iPCR_WASP_filter_remapped_reads:
     "{PY2} {WASP_DIR}/filter_remapped_reads.py "
     "  {input.to_remap_bam} {input.remap_bam} {output.keep_bam}"
 
+ruleorder: iPCR_splitBAM > iPCR_WASP_sort_and_index_bam > iPCR_WASP_map_bowtie2_paired_end
 rule iPCR_splitBAM:
   input:
     os.path.join(iPCR_OUTDIR,"{s}","map1_sort", "{s}.bam")
@@ -233,23 +241,25 @@ rule iPCR_WASP_merge_bams:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} merge {output.merge} {input.keep1} {input.keep2}; "
 
-rule iPCR_mapWASP:
-  input:
-    os.path.join(iPCR_OUTDIR,"{s}","merge","{s}_{c}.keep.merge.bam")
+def iPCR_map_input(wildcards):
+  if (ALLELE_SPECIFIC):
+    return os.path.join(iPCR_OUTDIR,wildcards.s,"merge",wildcards.s+"_"+wildcards.c+".keep.merge.bam") 
+  else:
+    return os.path.join(iPCR_OUTDIR,wildcards.s,"map1_sort",wildcards.s+"_"+wildcards.c+".bam")
+
+rule iPCR_map:
+  input: iPCR_map_input
   output:
     bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
-  threads: 
+  threads:
     4
-  resources:
-    ram=100
-  priority: 50
   shell:
     "{SAMTOOLS} sort -n -o {output} -@ {threads} -m 20G  {input} -T {input}; "
       
 rule iPCR_bam2bedpe:
   input:
     os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam"),
-    os.path.join(iPCR_OUTDIR,"{s}","{s}_forw.info")
+    os.path.join(iPCR_OUTDIR,"{s}","fastq1","{s}_forw.info")
   output:
     os.path.join(iPCR_OUTDIR, "{s}", "{s}_{c}.bedpe.gz")
   params:
@@ -258,15 +268,16 @@ rule iPCR_bam2bedpe:
   shell:
     "{iPCR_bam2bedpe_script} -o '{params.dir}' -l -b '{params.basename}' {input}" 
 
+#rule iPCR_merge_bedpe:
+#  input:
+#     BEDPE_FILES
+#  output:
+#    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
+#  shell:
+#    "{iPCR_merge_script} -l -o {iPCR_OUTDIR} {input}"
+#
+#rule iPCR_preMerge_WASP:
 rule iPCR_merge_bedpe:
-  input:
-     BEDPE_FILES
-  output:
-    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
-  shell:
-    "{iPCR_merge_script} -l -o {iPCR_OUTDIR} {input}"
-
-rule iPCR_preMerge_WASP:
   input:
     expand(os.path.join(iPCR_OUTDIR, "{s}", "{s}_{{c}}.bedpe.gz"), s=iPCR_SAMPLES.keys())
   output:
@@ -279,36 +290,40 @@ rule iPCR_preMerge_WASP:
 rule iPCR_annot_WASP:
   input:
     bedpe=os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}.txt.gz"),
-    snpdir=SNP_DIR
+    snpdir=SNP_DIR,
+    vcf=lambda wildcards: [os.path.join(VCF_DIR,f) for f in listdir(VCF_DIR) if fnmatch.fnmatch(f, "ALL."+wildcards.c+".phase3_shapeit2_mvncall_integrated_*.20130502.genotypes_HG02601_NA18983_HG01241_HG03464_LP170414.vcf.gz")]
   output:
     os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz")
   resources:
     ram=25
-  shell:
-    "{PY2} {WASP_DIR}/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}"
-
-rule iPCR_merge_WASP:
-  input:
-    expand(os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c= CHR_TARGET)
-  output:
-    os.path.join(iPCR_OUTDIR, "iPCR-combined-bedpe.txt.gz")
-  shell:
-    "zcat {input} | gzip -c > {output}"
-
-rule merge_all:
-  input:
-    iPCR=os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"),
-    cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
-    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
-    vcf=lambda wildcards: [os.path.join(VCF_DIR,f) for f in listdir(VCF_DIR) if fnmatch.fnmatch(f, "ALL."+wildcards.c+".phase3_shapeit2_mvncall_integrated_*.20130502.genotypes_HG02601_NA18983_HG01241_HG03464_LP170414.vcf.gz")]
-  output:
-    out=os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz"), 
-    tmp=os.path.join(OUTDIR, "SuRE-counts_{c}.inf.txt.gz")
   params:
     gid=GID
   shell:
+    "{PY2} {WASP_DIR}/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}.tmp ; "
+    "{add_homozygous_baseIdentities_script} {input.vcf} {output}.tmp '{params.gid}' | gzip -c > {output} ;  "
+    "rm -f {output}.tmp"
+#    "mv {output.out}.tmp {output.out}"
+
+def merge_all_input(wildcards):
+  if (ALLELE_SPECIFIC):
+    return os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_"+wildcards.c+"_SNPannot.txt.gz")
+  else:
+    return os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_"+wildcards.c+".txt.gz")
+
+rule merge_all:
+  input:
+    iPCR=merge_all_input,
+    cDNA=expand(os.path.join(cDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=cDNA_SAMPLES.keys()),
+    plDNA=expand(os.path.join(plDNA_OUTDIR, "{s}", "{s}_trimmed_table.txt.gz"), s=plDNA_SAMPLES.keys()),
+  output:
+    out=os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz")
+  params:
+    iPCR=merge_all_input
+  shell:
     "{merge_all_script} -l -i {input.iPCR} -o {OUTDIR} -d {output.out} {input.cDNA} {input.plDNA} ; "
-    "{add_homozygous_baseIdentities_script} {input.vcf} {output.out} '{params.gid}' | gzip -c > {output.tmp}; "
+#    "mv {outpout.out} {output.out}.tmp"
+#    "{add_homozygous_baseIdentities_script} {input.vcf} {output.out}.tmp '{params.gid}' | gzip -c > {output.out}; "
+#    "rm -f {output.out}.tmp"
 
 rule iPCR_single_QA:
   input:
