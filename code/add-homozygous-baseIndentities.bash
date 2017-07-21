@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # input:
-#   - SuRE-counts
+####   - SuRE-counts
+#   - bedpe
 #   - VCF file
 #   - SAMPLE ID
 
@@ -14,10 +15,10 @@ if [[ $# -ne 3 ]]; then
 fi
 
 VCF=$1
-SURE=$2
+BEDPE=$2
 SAMPLE=$3
 
-${GAWK} -v smpl=${SAMPLE} '
+${GAWK} -v smpl=${SAMPLE} -v colBASE=20 -v colVAR=22 -v colIDX=23 '
 # following is from https://stackoverflow.com/questions/42875915/how-do-you-convert-an-array-to-a-string-in-awk
 # Usage:
 #    arr2str(flds[,seps,[sortOrder]])
@@ -64,56 +65,56 @@ ${GAWK} -v smpl=${SAMPLE} '
 
 function arr2str(flds, seps, sortOrder,      sortedInPresent, sortedInValue, currIdx, prevIdx, idxCnt, outStr) {
 
-if ( "sorted_in" in PROCINFO ) {
-  sortedInPresent = 1
-  sortedInValue = PROCINFO["sorted_in"]
-}
-
-if ( sortOrder == "" ) {
-  sortOrder = (sortedInPresent ? sortedInValue : "@ind_num_asc")
-}
-PROCINFO["sorted_in"] = sortOrder
-
-if ( isarray(seps) ) {
-  # An array of separators.
-  if ( sortOrder ~ /desc$/ ) {
-    for (currIdx in flds) {
-      outStr = outStr (currIdx in seps ? seps[currIdx] : "") flds[currIdx]
-    }
+  if ( "sorted_in" in PROCINFO ) {
+    sortedInPresent = 1
+      sortedInValue = PROCINFO["sorted_in"]
   }
 
-  for (currIdx in seps) {
-    if ( !(currIdx in flds) ) {
-      outStr = outStr seps[currIdx]
-    }
+  if ( sortOrder == "" ) {
+    sortOrder = (sortedInPresent ? sortedInValue : "@ind_num_asc")
   }
+  PROCINFO["sorted_in"] = sortOrder
 
-  if ( sortOrder !~ /desc$/ ) {
-    for (currIdx in flds) {
-      outStr = outStr flds[currIdx] (currIdx in seps ? seps[currIdx] : "")
+    if ( isarray(seps) ) {
+# An array of separators.
+      if ( sortOrder ~ /desc$/ ) {
+	for (currIdx in flds) {
+	  outStr = outStr (currIdx in seps ? seps[currIdx] : "") flds[currIdx]
+	}
+      }
+
+      for (currIdx in seps) {
+	if ( !(currIdx in flds) ) {
+	  outStr = outStr seps[currIdx]
+	}
+      }
+
+      if ( sortOrder !~ /desc$/ ) {
+	for (currIdx in flds) {
+	  outStr = outStr flds[currIdx] (currIdx in seps ? seps[currIdx] : "")
+	}
+      }
     }
-  }
-}
-else {
-  # Fixed scalar separator.
-  # We would use this if we could distinguish an unset variable arg from a missing arg:
-  #    seps = (magic_argument_present_test == true ? seps : OFS)
-  # but we cant so just use whatever value was passed in.
+    else {
+# Fixed scalar separator.
+# We would use this if we could distinguish an unset variable arg from a missing arg:
+#    seps = (magic_argument_present_test == true ? seps : OFS)
+# but we cant so just use whatever value was passed in.
 #  print "new"
-  for (currIdx in flds) {
+      for (currIdx in flds) {
 #    print currIdx, flds[currIdx], outStr
-    outStr = outStr (idxCnt++ ? seps : "") flds[currIdx]
+	outStr = outStr (idxCnt++ ? seps : "") flds[currIdx]
+      }
+    }
+
+  if ( sortedInPresent ) {
+    PROCINFO["sorted_in"] = sortedInValue
   }
-}
+  else {
+    delete PROCINFO["sorted_in"]
+  }
 
-if ( sortedInPresent ) {
-  PROCINFO["sorted_in"] = sortedInValue
-}
-else {
-  delete PROCINFO["sorted_in"]
-}
-
-return outStr
+  return outStr
 }
 BEGIN {
   FS="\t"
@@ -134,9 +135,6 @@ NR==FNR {
 	continue
       }
     }
-
-    # GT=11
-    # print "GTcol="GT, $GT > "/dev/stderr"
     next
   }
   split($GT, alleles, "|")
@@ -148,63 +146,80 @@ NR==FNR {
     zygosity[idx][2] = $3
   } else {
     zygosity[idx][0] = 3
+    zygosity[idx][1] = $4"|"$5
     zygosity[idx][2] = $3
   }
   next
 }
-# reading SuRE-counts
-FNR==1 {
-# read header of SuRE-counts; print and add 2 column names
-    print $0, "SNPbaseInf","SNPvarInf","SNP_ID"
-    next
-  }
-$7 == "" {
-  # no SNPs in this fragment; simply add empty entries for the 3 additional columns
-  print $0, "", "", ""
+# reading data input
+$colVAR == "" {
+  # no SNPs in this fragment; simply add empty entries for the 4 additional columns
+  print $0, "", "", "", ""
   next
 }
 {
-  # all fragments need SNP_IDs added
-  split($7, snpvar, ",")
-  split($9, snpidx, ",")
+  
+  split($colVAR, snpvar, ",")
+  split($colIDX, snpidx, ",")
+  split($colBASE, snpbase, ",")
+  split($colVAR, newvar, ",")
+  split($colBASE, newbase, ",")
   split("", ID) # will hold SNP_IDs for all SNPs
-  split("", unread) # used to record all SNPs in fragment which are not read
-  baseout = $6 # string with base identities, possibly inferred
-  varout = $7 # string with new vars, possibly inferred
-  for (k in snpvar) {
-    # loop pver 
-    ID[k] = zygosity[snpidx[k]][2]
-    if (snpvar[k] == 3) 
-      unread[length(unread)]=k
-  }
-  IDout = arr2str(ID, ",")
-
-  # we looped over all SNPs and marked those which are not read
+  split("", patmat) # holds paternal/maternal chr
+  baseout = $colBASE # string with base identities, possibly inferred
+  varout = $colVAR # string with new vars, possibly inferred
   inferred=0
-  # if any SNP is unread check whether we can infer the base identity using zygosyti of the alleles
-  if (length(unread) > 0 ) {
-    split($6, snpbase, ",")
-    split($7, newvar, ",")
-    split($6, newbase, ",")
-    for (k in unread) {
-      # loop over unread SNPs
-      if ( zygosity[snpidx[unread[k]]][0] != 3 ) {
+  for (k in snpidx) {
+    # store ID of this SNP
+    ID[k] = zygosity[snpidx[k]][2]
+
+    # if SNP is heterozygous we can infer paternal/maternal 
+    patmat[k] = 0 # assume SNP is homozygous
+print("idx = "zygosity[snpidx[k]][1])
+    if ( zygosity[snpidx[k]][1] ~ /\|/ ) { 
+      # classify on which chr the SNP is;
+      # 1st chr      = 1
+      # 2nd chr      = 2
+      # homozygous   = 0 # already set above
+      # unknown base = 3
+print("bases: ", zygosity[snpidx[k]][1], snpbase[k],  zygosity[snpidx[k]][0])
+      idx=index(zygosity[snpidx[k]][1], snpbase[k])
+      if (idx == 0) { # base is neither refereence nor alternative
+        patmat[k] = 3
+      } else {
+        if (idx == 1) { # SNP is on 1st chr
+          patmat[k] = 1
+        } else { # SNP must be on 2nd chr
+          patmat[k] = 2
+        }
+      }
+    }
+      
+    if (snpvar[k] == 3) { # this SNP is not read
+      # check if we can infer bases which were not read
+      if ( zygosity[snpidx[k]][0] != 3 ) {
 	# SNP in this genome is not heterozygous (ie 3) assign new base identities and SNPvar
-	newvar[unread[k]] = zygosity[snpidx[unread[k]]][0]
-	newbase[unread[k]] = zygosity[snpidx[unread[k]]][1]
+	newvar[k] = zygosity[snpidx[k]][0]
+	newbase[k] = zygosity[snpidx[k]][1]
 	inferred = 1
       } else {
         # otherwise simply copy the old (ambiguous) base identity and SNPvar
-        newvar[unread[k]] = snpvar[unread[k]]
-	newbase[unread[k]] = snpbase[unread[k]]
+        newvar[k] = snpvar[k]
+	newbase[k] = snpbase[k]
       }
     }
-    # create new output if any of the SNPs are now inferred
-    if (inferred) {
-      varout = arr2str(newvar, ",")
-      baseout = arr2str(newbase, ",")
-    }
   }
-  print $0, baseout, varout, IDout
+ 
+  # create strings for collected data
+  IDout = arr2str(ID, ",")
+  PATMATout = arr2str(patmat, ",")
+  # create new output if any of the SNPs are now inferred
+  if (inferred) {
+    varout = arr2str(newvar, ",")
+    baseout = arr2str(newbase, ",")
+  }
+
+  # copy input to output plus 4 extra columns with inferred data (baseID, var (0,1,2,3), SNPid, pat/mat)
+  print $0, baseout, varout, IDout, PATMATout
 }
-' <( gzip -cd ${VCF} ) <( gzip -cd ${SURE} )
+' <( gzip -cd ${VCF} ) <( gzip -cd ${BEDPE} )
