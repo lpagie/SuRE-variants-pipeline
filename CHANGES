@@ -1,3 +1,45 @@
+Version 0.14.feature_SNP-usr-config:
+ - Merge branch 'feature_SNP-usr-config' into snakemake
+ - SuRE-snakemake; adapted to SNP usr-config
+ - add-homozygous-baseIndentities.bash; annotate bedpe
+ - SuRE-snakemake; defined cDNA_TARGETS, etc
+ - SuRE-snakemake; cleaning
+ - add-homozygous-baseIndentities.bash; added check
+ - SuRE-snakemake; bug-fixes unify bowtie/sort rules
+ - SuRE-snakemake; unify bowtie/sort rules
+ - Merge branch 'adapt2lovelace' into snakemake
+ - add-homozygous-baseIndentities.bash; new
+ - bed2coverage.rule; adapt to lovelace
+ - Makefile; add check rule
+ - SuRE-snakemake; adapt to lovelace + VCF_DIR + homo_SNPs
+ - Merge remote-tracking branch 'origin/snakemake' into snakemake
+ - Makefile, SuRE-snakemake; prep merge
+ - Merge branch 'feature-homozygous-SNPs' into snakemake
+ - SuRE-snakemake: add rules for annotating homozygous SNPs
+ - add-homozygous-baseIndentities.bash; 1st commit
+ - Makefile; adapt to lovelace + small adaptation
+ - SuRE-snakemake: adapt to lovelace
+ - Merge branch 'feature-toolsInConda' into snakemake
+ - _bed2coverage.bash; bugfix
+ - conda-wasp-environment.yml; added bamutils
+ - SuRE-snakemake; added bamutils to conda env + bugfix
+ - remove paths of used software
+ - conda-wasp-environment.yml: added R, wigToBigWig
+ - conda-wasp-environment.yml: added samtools/...
+ - SuRE-snakemake; point python to subdir code/conda
+ - code/conda-wasp-environment.yml; first commit
+ - .gitignore; added code/conda
+ - Makefile: added create conda env
+ - SuRE-snakemake: changed WASP_DIR
+ - readme_LP170524: first commit
+ - .gitignore: added code/WASP/
+ - SuRE-snakemake: minor, per-chr bed2cov
+ - bed2coverage.rule: add per-chrom rule
+ - code/bed2coverage/.gitignore: ignore bed2coverage
+ - bed2coverage; first commit
+ - Makefile: added a submake for bed2coverage
+ - SuRE-snakemake: call bed2coverage from CODE_BASE
+
 Version 0.13.fix-annotReverseReadCIGAR:
  - iPCR-merge-bedpe-Filter-BC-multi-pos.bash; copy correct cigars
  - SuRE-snakemake: hotfix, annotBedPE
