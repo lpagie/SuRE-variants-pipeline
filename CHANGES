@@ -1,4 +1,12 @@
-Version 0.14.lovelace-homozygSNPs:
+Version 0.14.feature_SNP-usr-config:
+ - Merge branch 'feature_SNP-usr-config' into snakemake
+ - SuRE-snakemake; adapted to SNP usr-config
+ - add-homozygous-baseIndentities.bash; annotate bedpe
+ - SuRE-snakemake; defined cDNA_TARGETS, etc
+ - SuRE-snakemake; cleaning
+ - add-homozygous-baseIndentities.bash; added check
+ - SuRE-snakemake; bug-fixes unify bowtie/sort rules
+ - SuRE-snakemake; unify bowtie/sort rules
  - Merge branch 'adapt2lovelace' into snakemake
  - add-homozygous-baseIndentities.bash; new
  - bed2coverage.rule; adapt to lovelace
