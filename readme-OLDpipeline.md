@@ -6,7 +6,9 @@ self-contained:
 highlight-style:tango
 -->
 
+# Old README
 
+This readme is for an older version of the pipeline. 
 
 # Overview of processing scripts
 
