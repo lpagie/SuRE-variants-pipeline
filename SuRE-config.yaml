@@ -1,8 +1,17 @@
+# directory for all generated output
 OUTDIR: "SuRE-pipelineOutput"
+# expected adapter sequence in cDNA reads
 ADPT_SEQ: "CCTAGCTAACTATAACGGTCCTAAGGTAGCGAA"
+# expected adapter sequence in forward iPCR reads
 ADPTR_IPCR_FORW_SEQ: "CCTAGCTAACTATAACGGTCCTAAGGTAGCGAACCAGTGAT"
+# expected adapter sequence in reverse iPCR reads
 ADPTR_IPCR_REV_SEQ: "CCAGTCGT"
 
+# early SuRE experiemts included a step for shortening iPCR selfligated
+# circles. This was done by cutting a restriction site in the gDNA of ligated
+# circle, followed by religation (I think). This section defines different such
+# restriction motifs. Nowadays the fragments generatedd are shorter so that
+# this step is no longer required.
 CUTMOTIF_CATG: &CUTMOTIF_CATG 
   "CATG"
 CUTMOTIF_TCGA: &CUTMOTIF_TGCA 
@@ -10,6 +19,8 @@ CUTMOTIF_TCGA: &CUTMOTIF_TGCA
 CUTMOTIF_NONE: &CUTMOTIF_NONE
   ""
 
+# This section defines the genotypes of 5 specific libraries. These settings
+# allow selection of specific SNP sets for annotating the data.
 SuRE42_GID: &SURE42_GID
   "HG02601"
 SuRE43_GID: &SURE43_GID
@@ -18,18 +29,49 @@ SuRE44_GID: &SURE44_GID
   "HG01241"
 SuRE45_GID: &SURE45_GID
   "HG03464"
+# genotype selection for a particular dataset
 GID: *SURE45_GID
 
+# location of reference sequence index file for bowtie2
 BOWTIE2_REFSEQ: "$HOME/data/bowtie2-indexes/hg19_ch1-22_XYM"
+# a bowtie2 setting which specifies the maximum length of the fragments. This
+# setting strongly affects the running time of the bowtie2 step. Current
+# setting is probably somewhat higher than necessary.
 MAX_INSERT_LENGTH: 1000
+# number of cores. This is generally overridden by the commandline argument '--cores'
 NCORES: 30
+# genome assembly (not sure why/where this is used :-( )
 ASSEMBLY: "hg19"
+# specify which chromosomes will be included in the data processing
+# use this to run the pipeline on a limited (test) data set
+CHR_TARGET:
+  - chr1
+  - chr2
+  - chr3
+  - chr21
+  - chr22
+  - chrX
+  - chrY
+# select the processing to include SNPs or not
+# ALLELE_SPECIFIC: "yes"
+ALLELE_SPECIFIC: 0
+# if ALLELE_SPECIFIC this folder will contain the SNP annotation (what format?)
+SNP_DIR: "/DATA/home/ludo/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
 
+###################################################
+# The above settings are 'general' ################
+# Below are settings to specify input data files ##
+###################################################
+
+# section for specifying cDNA 
 cDNA:
+  # location of folder with cDNA fastq files
   FASTQ_DIR:
     "/home/NFS/users/l.pagie/projects/LP140430_SureSeq_JvArensbergen/analyses/LP161219_SuRE23_reProc/fastq/cDNA/"
+  # name of folder in 'OUTDIR' for cDNA related output
   OUTDIR:
     "cDNA"
+  # name of samples (used to label data files and data columns) with a list of fastq filenames
   SAMPLES:
     SuRE23_45_B1_T1:
       - 3520_1_12_1_RNA_45_5_K562_SuRE23_TFrep1_PCRrep1_pgcDNA_adapter_2_150604_hg_CAGATCA_L002_R1_001.fastq.gz
@@ -61,7 +103,9 @@ iPCR:
   OUTDIR:
     "iPCR"
   SAMPLES:
-    iPCR_3262_2: 
+    iPCR_3262_2:
+    # named list specifying fastq files forward and reverse reads respectively, 
+    # and the restriction motif used to make iPCR ligated circles smaller
       R1: 3262_2_SuRE23_iPCR_1_CGATGTA_L001_R1_001.fastq.gz
       R2: 3262_2_SuRE23_iPCR_1_CGATGTA_L001_R2_001.fastq.gz
       CUTMOTIF: *CUTMOTIF_CATG
