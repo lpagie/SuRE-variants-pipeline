@@ -10,7 +10,7 @@ SuRE-snakemake.org
 code/conda
 
 # subdirectory code/WASP since it is a git repos on its own (maybe should have used 'git submodules')
-code/WASP
+# code/WASP
 
 # ignore bam files
 *.bam
