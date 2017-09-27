@@ -8,8 +8,9 @@ highlight-style:tango
 
 # SUBMODULE ALERT!!!!!
 
-This pipeline uses WASP () for some of the SNP related data processing. I have
-a adapted version of WASP () which I added to this repos as a submodule.
+This pipeline uses WASP (https://github.com/bmvdgeijn/WASP) for some of the SNP
+related data processing. I have a forked/adapted version of WASP
+(https://github.com/lpagie/WASP) which I added to this repos as a submodule.
 
 Most importantly: in order to clone this repos use the following command:
 ```
