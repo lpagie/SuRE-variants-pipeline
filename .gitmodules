@@ -1,0 +1,3 @@
+[submodule "code/WASP"]
+	path = code/WASP
+	url = https://github.com/lpagie/WASP.git
