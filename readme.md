@@ -6,6 +6,20 @@ self-contained:
 highlight-style:tango
 -->
 
+# SUBMODULE ALERT!!!!!
+
+This pipeline uses WASP () for some of the SNP related data processing. I have
+a adapted version of WASP () which I added to this repos as a submodule.
+
+Most importantly: in order to clone this repos use the following command:
+```
+git clone --recursive https://github.com/lpagie/SuRE-pipeline.git
+```
+
+Also note that you will not be notified of changes in the submodule. ( I don't
+expect changes, so this is just a disclaimer ;-)
+
+
 # Overview of processing steps
 
 SuRE data consists of potentially 3 types of NGS data:
