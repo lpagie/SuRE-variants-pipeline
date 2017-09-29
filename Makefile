@@ -16,4 +16,5 @@ check:
 		echo "Conda is required to build this application"; \
 		exit 1; \
 	}
-	conda env update -n SuRE-pipeline -f code/conda-wasp-environment.yml 
+	conda env update -n SuRE-pipeline -f code/conda-env-sure.yml 
+	conda env update -n SuRE-pipeline -f code/conda-env-py2.yml 

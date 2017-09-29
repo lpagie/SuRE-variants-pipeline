@@ -13,7 +13,7 @@ configfile: "config.yaml"
 # copy all parameters (for readability)
 # CODE_BASE               = "/home/NFS/users/yo.kim/SuRE/SuRE-pipeline/code"
 
-CONDA_ENV               = os.path.join(CODE_BASE, 'conda-wasp-environment.yml')
+CONDA_ENV               = os.path.join(CODE_BASE, 'conda-env-sure.yml')
 CONDA_ENV_PY2           = os.path.join(CODE_BASE, 'conda-env-py2.yml')
 SAMTOOLS                = "samtools"
 WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
