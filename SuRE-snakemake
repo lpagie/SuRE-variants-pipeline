@@ -11,12 +11,13 @@ import fnmatch
 configfile: "config.yaml"
 
 # copy all parameters (for readability)
-CODE_BASE               = "/home/NFS/users/yo.kim/SuRE/SuRE-pipeline/code"
+# CODE_BASE               = "/home/NFS/users/yo.kim/SuRE/SuRE-pipeline/code"
 
 CONDA_ENV               = os.path.join(CODE_BASE, 'conda-wasp-environment.yml')
+CONDA_ENV_PY2           = os.path.join(CODE_BASE, 'conda-env-py2.yml')
 SAMTOOLS                = "samtools"
 WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
-PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " python2.7 "
+PY2_WASP                = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " python2.7 "
 SNP_DIR                 = "/DATA/home/ludo/projects/LP140430_SureSeq_JvArensbergen/data/LP170210_SuRE42-45_1000Genomes/"
 SPLITBAM                = "bam splitChromosome "
 
@@ -164,10 +165,10 @@ rule iPCR_WASP_find_SNPs:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","fastq2"),
     bname="{s}_{c}"
-  conda: CONDA_ENV
+  conda: CONDA_ENV_PY2
   shell:
     "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/find_intersecting_snps.py "
+    "{PY2_WASP} {WASP_DIR}/find_intersecting_snps.py "
     "--is_paired_end --is_sorted --output_dir '{params.dir}' --snp_dir {input.snpdir} {input.bam}; "
     "mv '{params.dir}'/'{params.bname}'.remap.fq1.gz {output[0]}; "
     "mv '{params.dir}'/'{params.bname}'.remap.fq2.gz {output[1]}; "
@@ -181,10 +182,10 @@ rule iPCR_WASP_filter_remapped_reads:
     keep_bam=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads","{s}_{c}.keep.bam")
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads")
-  conda: CONDA_ENV
+  conda: CONDA_ENV_PY2
   shell:
     "mkdir -p '{params.dir}' ; "
-    "{PY2} {WASP_DIR}/filter_remapped_reads.py "
+    "{PY2_WASP} {WASP_DIR}/filter_remapped_reads.py "
     "  {input.to_remap_bam} {input.remap_bam} {output.keep_bam}"
 
 ruleorder: iPCR_splitBAM > iPCR_WASP_sort_and_index_bam > iPCR_WASP_map_bowtie2_paired_end
@@ -313,9 +314,9 @@ rule iPCR_annot_WASP:
     ram=25
   params:
     gid=GID
-  conda: CONDA_ENV
+  conda: CONDA_ENV_PY2
   shell:
-    "{PY2} {WASP_DIR}/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}.tmp ; "
+    "{PY2_WASP} {WASP_DIR}/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}.tmp ; "
     "{add_homozygous_baseIdentities_script} {input.vcf} {output}.tmp '{params.gid}' | gzip -c > {output} ;  "
     "rm -f {output}.tmp"
 #    "mv {output.out}.tmp {output.out}"
