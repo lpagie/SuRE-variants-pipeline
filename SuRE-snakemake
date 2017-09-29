@@ -8,9 +8,12 @@ from itertools import compress
 from os import listdir
 import fnmatch
 
-# copy all parameters (for readability)
-CODE_BASE               = "/home/ludo/DATA/fromHPC_resProjects/LP170414_SuRE_tstData/SuRE-pipeline/code"
+configfile: "config.yaml"
 
+# copy all parameters (for readability)
+CODE_BASE               = "/home/NFS/users/yo.kim/SuRE/SuRE-pipeline/code"
+
+CONDA_ENV               = os.path.join(CODE_BASE, 'conda-wasp-environment.yml')
 SAMTOOLS                = "samtools"
 WASP_DIR                = os.path.join(CODE_BASE, "WASP/mapping")
 PY2                     = "PYTHONPATH=$PYTHONPATH:" + WASP_DIR + " python2.7 "
@@ -36,7 +39,7 @@ MAX_INSERT_LENGTH       = config["MAX_INSERT_LENGTH"]
 NCORES                  = config["NCORES"]
 OUTDIR                  = config["OUTDIR"]
 ALLELE_SPECIFIC         = config["ALLELE_SPECIFIC"]
-SNP_DIR                 = config["SNP_DIR"]
+#SNP_DIR                 = config["SNP_DIR"]
 GID                     = config["GID"]
 CHR_TARGET              = config["CHR_TARGET"]
 
@@ -114,6 +117,7 @@ rule cDNA:
   params:
     dir=os.path.join(cDNA_OUTDIR,"{s}"),
     basename="{s}"
+  conda: CONDA_ENV
   shell:
     "{cDNA_script} -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
 
@@ -125,6 +129,7 @@ rule plDNA:
   params:
     dir=os.path.join(plDNA_OUTDIR,"{s}"),
     basename="{s}"
+  conda: CONDA_ENV
   shell:
     "{cDNA_script} -l -b '{params.basename}' -o '{params.dir}' -a {ADPT_SEQ} {input}"
 
@@ -141,6 +146,7 @@ rule iPCR_trim:
     forwAdaptr=ADPTR_IPCR_FORW_SEQ,
     revAdaptr=ADPTR_IPCR_REV_SEQ,
     basename="{s}"
+  conda: CONDA_ENV
   shell:
     "{iPCR_trim_script} -o '{params.dir}' -l -d '{params.cutmotif}' -b '{params.basename}' -f '{params.forwAdaptr}' -r '{params.revAdaptr}' -c {input}; "
     "gzip '{params.dir}'/*fastq"
@@ -158,6 +164,7 @@ rule iPCR_WASP_find_SNPs:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","fastq2"),
     bname="{s}_{c}"
+  conda: CONDA_ENV
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/find_intersecting_snps.py "
@@ -174,6 +181,7 @@ rule iPCR_WASP_filter_remapped_reads:
     keep_bam=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads","{s}_{c}.keep.bam")
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","filter_remapped_reads")
+  conda: CONDA_ENV
   shell:
     "mkdir -p '{params.dir}' ; "
     "{PY2} {WASP_DIR}/filter_remapped_reads.py "
@@ -187,6 +195,7 @@ rule iPCR_splitBAM:
     expand(os.path.join(iPCR_OUTDIR,"{{s}}","map1_sort", "{{s}}_{c}.bam"),c=CHR_TARGET)
   params:
     noext=os.path.join(iPCR_OUTDIR,"{s}","map1_sort","{s}_")
+  conda: CONDA_ENV
   shell:
     "{SPLITBAM} --in {input} --out '{params.noext}'; "
     "for f in '{params.noext}'chr*.bam; do {SAMTOOLS} index $f; done ; "
@@ -200,6 +209,7 @@ rule iPCR_WASP_sort_and_index_bam:
     dir=os.path.join(iPCR_OUTDIR,"{s}","map{p}_sort")
   threads: 
     4
+  conda: CONDA_ENV
   resources:
     ram=100
   shell:
@@ -222,6 +232,7 @@ rule iPCR_WASP_map_bowtie2_paired_end:
     maxInsert=MAX_INSERT_LENGTH
   threads: 
     5
+  conda: CONDA_ENV
   priority: 50
   shell:
     "{iPCR_mapOnly_script} -o '{params.dir}' -l -n {threads} -t $PWD/'{params.stats}' -b '{params.basename}' -m '{params.maxInsert}' -s '{params.refseq}' -c {input}"
@@ -237,6 +248,7 @@ rule iPCR_WASP_merge_bams:
     4
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}","merge")
+  conda: CONDA_ENV
   shell:
     "mkdir -p '{params.dir}' ; "
     "{SAMTOOLS} merge {output.merge} {input.keep1} {input.keep2}; "
@@ -253,6 +265,7 @@ rule iPCR_map:
     bamfinal=os.path.join(iPCR_OUTDIR,"{s}","{s}_{c}.bam")
   threads:
     4
+  conda: CONDA_ENV
   shell:
     "{SAMTOOLS} sort -n -o {output} -@ {threads} -m 20G  {input} -T {input}; "
       
@@ -265,6 +278,7 @@ rule iPCR_bam2bedpe:
   params:
     dir=os.path.join(iPCR_OUTDIR,"{s}"),
     basename="{s}"
+  conda: CONDA_ENV
   shell:
     "{iPCR_bam2bedpe_script} -o '{params.dir}' -l -b '{params.basename}' {input}" 
 
@@ -284,6 +298,7 @@ rule iPCR_merge_bedpe:
     os.path.join(iPCR_OUTDIR, "bed-annot", "iPCR-combined-bedpe_{c}.txt.gz")
   params:
     dir=os.path.join(iPCR_OUTDIR, "bed-annot")
+  conda: CONDA_ENV
   shell:
     "{iPCR_merge_script} -l -o '{params.dir}' -b {output} {input}"
 
@@ -298,6 +313,7 @@ rule iPCR_annot_WASP:
     ram=25
   params:
     gid=GID
+  conda: CONDA_ENV
   shell:
     "{PY2} {WASP_DIR}/annotate_bedpe_LP170516.py --snp_dir {input.snpdir} {input.bedpe} | sort -k6 -S 20G | gzip -c > {output}.tmp ; "
     "{add_homozygous_baseIdentities_script} {input.vcf} {output}.tmp '{params.gid}' | gzip -c > {output} ;  "
@@ -319,6 +335,7 @@ rule merge_all:
     out=os.path.join(OUTDIR, "SuRE-counts_{c}.txt.gz")
   params:
     iPCR=merge_all_input
+  conda: CONDA_ENV
   shell:
     "{merge_all_script} -l -i {input.iPCR} -o {OUTDIR} -d {output.out} {input.cDNA} {input.plDNA} ; "
 #    "mv {outpout.out} {output.out}.tmp"
@@ -333,6 +350,7 @@ rule iPCR_single_QA:
   params:
     basename="{s}",
     outdir=os.path.join(iPCR_OUTDIR,"{s}")
+  conda: CONDA_ENV
   shell:
     "{iPCR_single_QA_script} -l -b '{params.basename}' -o '{params.outdir}'"
 
