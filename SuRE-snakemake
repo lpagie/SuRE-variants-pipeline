@@ -8,10 +8,10 @@ from itertools import compress
 from os import listdir
 import fnmatch
 
-configfile: "config.yaml"
+# configfile: "config.yaml"
 
 # copy all parameters (for readability)
-# CODE_BASE               = "/home/NFS/users/yo.kim/SuRE/SuRE-pipeline/code"
+CODE_BASE               = ""
 
 CONDA_ENV               = os.path.join(CODE_BASE, 'conda-env-sure.yml')
 CONDA_ENV_PY2           = os.path.join(CODE_BASE, 'conda-env-py2.yml')
@@ -41,7 +41,6 @@ NCORES                  = config["NCORES"]
 OUTDIR                  = config["OUTDIR"]
 ALLELE_SPECIFIC         = config["ALLELE_SPECIFIC"]
 #SNP_DIR                 = config["SNP_DIR"]
-GID                     = config["GID"]
 CHR_TARGET              = config["CHR_TARGET"]
 
 CHR_ALL                 = ["chr"+str(i) for i in range(1,23)]+['chrX','chrY','chrM']
@@ -83,6 +82,7 @@ if (ALLELE_SPECIFIC is None) or (ALLELE_SPECIFIC == 0):
   VCF_DIR=""
   print("processing in non-allele specific manner")
 else:
+  GID = config["GID"]
   if GID is None:
     sys.exit("ALLELE_SPECIFIC processing requested but no GID specified")
   if SNP_DIR is None:
