@@ -233,6 +233,8 @@ rule iPCR_WASP_map_bowtie2_paired_end:
     maxInsert=MAX_INSERT_LENGTH
   threads: 
     5
+  resources:
+    ram=20
   conda: CONDA_ENV
   priority: 50
   shell:
