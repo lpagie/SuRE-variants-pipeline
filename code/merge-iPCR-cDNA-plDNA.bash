@@ -317,7 +317,7 @@ END {
     { 
       print $0 | "sort -k1.4,1V -k2,2g -k3,3g"
     }' | \
-${GAWK} -v POS_MULTI_BC_FNAME="${OUTPUT%.txt.gz}_pos_multi_BC.txt" '
+${GAWK} -v POS_MULTI_BC_FNAME="${OUTPUT%.txt.gz}_pos_multi_BC.txt" -v NUM_SAMPLES=${#SAMPLES[@]}'
 # awk script to merge counts for duplicated positions
 # the input is position sorted: CHR/START/END/STRAND/IPCR/SAMPLES.....
 # for every input line a position-label is created as a concatenation of the fields chr/start/end/strand
@@ -331,12 +331,15 @@ function PROC_PREV_POS(     maxcnt, maxline, BCs, BCmax) {
   }
   else {
     split(PREVLINE[1], outline)
-    for (i=10; i<=length(outline); i++)
+    # for (i=10; i<=length(outline); i++)
+    # set counts for iPCR and sample columns to 0
+    for (i=10; i<=10+NUM_SAMPLES; i++)
       outline[i] = 0
     for (line in PREVLINE) {
       print PREVLINE[line] > POS_MULTI_BC_FNAME
       split(PREVLINE[line], w)
-      for (i=10; i<=length(outline); i++)
+      # for (i=10; i<=length(outline); i++)
+      for (i=10; i<=10+NUM_SAMPLES; i++)
 	outline[i] = outline[i] + w[i]
     }
     # print the merged output line
