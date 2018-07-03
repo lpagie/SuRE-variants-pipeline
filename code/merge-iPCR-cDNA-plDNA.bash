@@ -315,7 +315,7 @@ END {
       next
     }
     { 
-      print $0 | "sort -S 50%  -k1.4,1V -k2,2g -k3,3g"
+      print $0 | "sort -k1.4,1V -k2,2g -k3,3g"
     }' | \
 ${GAWK} -v POS_MULTI_BC_FNAME="${OUTPUT%.txt.gz}_pos_multi_BC.txt" '
 # awk script to merge counts for duplicated positions
