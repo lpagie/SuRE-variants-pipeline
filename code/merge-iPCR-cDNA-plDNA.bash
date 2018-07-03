@@ -206,6 +206,7 @@ END {
   printf ("chr\tstart\tend\tstrand\tSNPrelpos\tSNPbase\tSNPvar\tSNPabspos\tSNPidx\tiPCR")
   for (i=1; i<=length(samples); i++)
     printf("\t%s", samples[i])
+  printf ("\tSNPbaseInf\tSNPvarInf\tSNP_ID\tPAT_MAT")
   printf("\n")
 
   # read input from iPCR datafile; for every BC read from iPCR iterate over all
@@ -226,6 +227,10 @@ END {
     lineout["SNPabspos"] = $21
     lineout["SNPvar"] = $22
     lineout["SNPidx"] = $23
+    lineout["SNPbaseInf"]=$24
+    lineout["SNPvarInf"]=$25
+    lineout["SNP_ID"]=$26
+    lineout["PAT_MAT"]=$27
 
     # iterate over all open pipes
     for (i in samples) {
@@ -285,11 +290,13 @@ END {
     # all sample pipes for current iPCR barcode have been processed
     # print record to stdout
     printf("%s\t%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%d", 
-      BCipcr, lineout["CHR"], lineout["START"], lineout["END"], lineout["STRAND"], 
-      lineout["SNPrelpos"], lineout["SNPbase"], lineout["SNPvar"], lineout["SNPabspos"],
-      lineout["SNPidx"], lineout["iPCR"])
+           BCipcr, lineout["CHR"], lineout["START"], lineout["END"], lineout["STRAND"], 
+           lineout["SNPrelpos"], lineout["SNPbase"], lineout["SNPvar"], lineout["SNPabspos"],
+           lineout["SNPidx"], lineout["iPCR"])
     for (i=1; i<=length(samples); i++)
       printf("\t%d", lineout[samples[i]])
+    printf("\t%s\t%s\t%s\t%s", lineout["SNPbaseInf"], lineout["SNPvarInf"], 
+           lineout["SNP_ID"], lineout["PAT_MAT"])
     printf("\n")
   } # end loop _while ((ipcrpipe | getline) > 0)_
   close (ipcr file)
