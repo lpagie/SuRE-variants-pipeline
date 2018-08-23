@@ -60,7 +60,7 @@ def main(options):
         # out_bw.addEntries(chrs, list(st), list(en), list(sc))
         # out_bw.addEntries(chrs, *zip(*ints))
 
-    print("closing bigwig file for output (%)" % options.outfname)
+    print("closing bigwig file for output (%s)" % options.outfname)
     out_bw.close()
     return True
 
