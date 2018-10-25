@@ -55,13 +55,14 @@ def main(options):
         print("exporting data from chrom; "+chroms[fname]+" (file: "+fname+")")
         ints = bw[fname].intervals(chroms[fname])
         chrs = [chroms[fname]]*len(ints)
-        out_bw.addEntries(chrs, [i[0] for i in ints], ends=[i[1] for i in ints], values=[i[2] for i in ints])
-        # st, en, sc = zip(*ints)
-        # out_bw.addEntries(chrs, list(st), list(en), list(sc))
-        # out_bw.addEntries(chrs, *zip(*ints))
+        out_bw.addEntries(chrs, 
+                          [i[0] for i in ints], 
+                          ends=[i[1] for i in ints], 
+                          values=[i[2] for i in ints])
 
-    print("closing bigwig file for output (%)" % options.outfname)
+    print("closing bigwig file for output (%s)" % options.outfname)
     out_bw.close()
+
     return True
 
 if __name__ == "__main__":

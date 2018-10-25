@@ -39,3 +39,4 @@ code/conda
 cache/
 readme.pdf
 SuRE-scripts.zip
+__pycache__
