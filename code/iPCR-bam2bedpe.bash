@@ -493,7 +493,7 @@ END {
 } ' ${BEDPE}.tmp <(${CAT} ${INFO}) | \
 # sort resulting bedpe file on seqname and start (latter numeric
 # sort)
-sort -S 50% -k1,1 -k2,2n | \
+sort -k1,1 -k2,2n | \
 # remove duplicates and add a count column
 uniq -c |\
 # reorder columns: move count to 7th column

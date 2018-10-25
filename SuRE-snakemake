@@ -100,8 +100,8 @@ include: os.path.join(CODE_BASE, "bed2coverage/bed2coverage.rule")
 
 rule all:
   input:
-    cDNA_TARGETS, plDNA_TARGETS, iPCR_TARGETS
-#    "bed2coverage.done"
+    cDNA_TARGETS, plDNA_TARGETS, iPCR_TARGETS,
+    "bed2coverage.done"
 #    "QA.done"
 
 rule QA:

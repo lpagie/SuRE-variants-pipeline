@@ -192,7 +192,7 @@ echo ""
 # pipe all bedpe files into ...
 ${CAT} $BEDPE_FNAME | \
   # sort bedpe data on barcode (dictionary order)
-  sort -S 50% --parallel=${NCORES} -k 6,6d | \
+  sort --parallel=${NCORES} -k 6,6d | \
   ${GAWK} -v BC_MULTI_POS_FNAME="${OUTDIR}/BC_multi_pos_${DATETAG}_${TIMETAG}.txt" '
   # this piece of awk collapses iPCR bedpe data "points": 
   # while consecutive lines contain identical barcodes the lines are collected in a array "PREVLINE"
