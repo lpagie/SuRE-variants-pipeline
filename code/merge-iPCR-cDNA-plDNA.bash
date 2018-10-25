@@ -324,7 +324,7 @@ END {
     { 
       print $0 | "sort -k1.4,1V -k2,2g -k3,3g"
     }' | \
-${GAWK} -v POS_MULTI_BC_FNAME="${OUTPUT%.txt.gz}_pos_multi_BC.txt" -v NUM_SAMPLES=${#SAMPLES[@]}'
+${GAWK} -v POS_MULTI_BC_FNAME="${OUTPUT%.txt.gz}_pos_multi_BC.txt" -v NUM_SAMPLES="${#SAMPLES[@]}" '
 # awk script to merge counts for duplicated positions
 # the input is position sorted: CHR/START/END/STRAND/IPCR/SAMPLES.....
 # for every input line a position-label is created as a concatenation of the fields chr/start/end/strand
