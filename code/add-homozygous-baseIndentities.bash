@@ -175,14 +175,14 @@ $colVAR == "" {
 
     # if SNP is heterozygous we can infer paternal/maternal 
     patmat[k] = 0 # assume SNP is homozygous
-print("idx = "zygosity[snpidx[k]][1])
+# print("idx = "zygosity[snpidx[k]][1])
     if ( zygosity[snpidx[k]][1] ~ /\|/ ) { 
       # classify on which chr the SNP is;
       # 1st chr      = 1
       # 2nd chr      = 2
       # homozygous   = 0 # already set above
       # unknown base = 3
-print("bases: ", zygosity[snpidx[k]][1], snpbase[k],  zygosity[snpidx[k]][0])
+# print("bases: ", zygosity[snpidx[k]][1], snpbase[k],  zygosity[snpidx[k]][0])
       idx=index(zygosity[snpidx[k]][1], snpbase[k])
       if (idx == 0) { # base is neither refereence nor alternative
         patmat[k] = 3
