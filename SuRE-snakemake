@@ -212,10 +212,10 @@ rule iPCR_WASP_sort_and_index_bam:
     4
   conda: CONDA_ENV
   resources:
-    ram=100
+    ram=25
   shell:
     "mkdir -p '{params.dir}' ; "
-    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 20G {input} -T {output[0]} ; "
+    "{SAMTOOLS} sort -o {output[0]} -@ {threads} -m 1G {input} -T {output[0]} ; "
     "{SAMTOOLS} index {output[0]} ; "
 
 
@@ -234,7 +234,7 @@ rule iPCR_WASP_map_bowtie2_paired_end:
   threads: 
     5
   resources:
-    ram=20
+    ram=5
   conda: CONDA_ENV
   priority: 50
   shell:
