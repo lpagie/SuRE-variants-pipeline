@@ -97,6 +97,7 @@ rule _bed2coverage_chr:
     s="{sample}"
   resources:
     ram=50
+  conda: CONDA_ENV
   shell:
     " export BED2COVERAGE_EXE={CODE_BASE_BED2COV}'bed2coverage' ; "
     " {BED2COVERAGE} {input} {output.all} {output.plus} {output.minus} {params.s} {CHROMSIZES} ; "
@@ -115,6 +116,7 @@ rule _bed2coverage:
     s="{sample}"
   resources:
     ram=50
+  conda: CONDA_ENV
   shell:
     " export BED2COVERAGE_EXE={CODE_BASE_BED2COV}'bed2coverage' ; "
     " {BED2COVERAGE} {input} {output.all} {output.plus} {output.minus} {params.s} {CHROMSIZES} ; "
