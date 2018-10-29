@@ -7,12 +7,25 @@ import sys
 from itertools import compress
 from os import listdir
 import fnmatch
+import inspect
+import subprocess
 
-# configfile: "config.yaml"
+snakefilename = inspect.getframeinfo(inspect.currentframe()).filename
+repospath = os.path.dirname(os.path.abspath(snakefilename))
+repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; [ -z "$( git status --porcelain )" ] && exit 0 || exit 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+if repos_state.returncode != 0:
+        print("Your snakefile is modified relative to the git repos")
+        print("Either undo your changes, or commit them")
+        print("Aborting")
+
+# check if snakefile originates from a 'clean' git repos
+# set code_base directory and retrieve hash of git commit
+CODE_BASE = os.path.join(repospath, "code")
+repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; git log --pretty=format:"%H" -n 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+GIT_COMMIT_HASH = repos_state.stdout
+
 
 # copy all parameters (for readability)
-CODE_BASE               = ""
-
 CONDA_ENV               = os.path.join(CODE_BASE, 'conda-env-sure.yml')
 CONDA_ENV_PY2           = os.path.join(CODE_BASE, 'conda-env-py2.yml')
 SAMTOOLS                = "samtools"
@@ -51,7 +64,7 @@ CHR_AVAIL=list(compress(CHR_ALL, [os.path.isfile(f) for f in expand(os.path.join
 # print pipeline VERSION to stdout
 with open(VERSIONFILE, 'r') as myfile:
     VERSION=myfile.read().replace('\n', '')
-print ("SuRE-seq pipeline version: ", VERSION, "\n\n")
+print ("SuRE-seq pipeline version: ", VERSION, "\n", "git commit hash: ", GIT_COMMIT_HASH, "\n\n")
 
 cDNA_SAMPLES=config["cDNA"]["SAMPLES"]
 if cDNA_SAMPLES is None:
