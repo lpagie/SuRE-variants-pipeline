@@ -212,7 +212,7 @@ rule iPCR_splitBAM:
   conda: CONDA_ENV
   shell:
     "{SPLITBAM} --in {input} --out '{params.noext}'; "
-    "for f in '{params.noext}'chr*.bam; do {SAMTOOLS} index $f; done ; "
+    "for f in '{params.noext}'*.bam; do {SAMTOOLS} index $f; done ; "
 
 rule iPCR_WASP_sort_and_index_bam:
   input:
