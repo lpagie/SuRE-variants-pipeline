@@ -26,6 +26,7 @@ repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; git log --pretty=forma
 GIT_COMMIT_HASH = repos_state.stdout
 
 # print pipeline VERSION to stdout
+VERSIONFILE = os.path.join(CODE_BASE, "../", "VERSION")
 with open(VERSIONFILE, 'r') as myfile:
     VERSION=myfile.read().replace('\n', '')
 print ("SuRE-seq pipeline version: ", VERSION, "\n", "git commit hash: ", GIT_COMMIT_HASH, "\n\n")
@@ -49,7 +50,6 @@ iPCR_merge_script       = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-mu
 split_bedpe_script      = os.path.join(CODE_BASE, "split-bedpe2chr.sh")
 merge_all_script        = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
 add_homozygous_baseIdentities_script = os.path.join(CODE_BASE, "add-homozygous-baseIndentities.bash")
-VERSIONFILE             = os.path.join(CODE_BASE, "../", "VERSION")
 
 ADPT_SEQ                = config["ADPT_SEQ"]
 ADPTR_IPCR_FORW_SEQ     = config["ADPTR_IPCR_FORW_SEQ"]
