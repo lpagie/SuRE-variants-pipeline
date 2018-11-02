@@ -13,7 +13,7 @@ import subprocess
 # check if snakefile originates from a 'clean' git repos
 snakefilename = inspect.getframeinfo(inspect.currentframe()).filename
 repospath = os.path.dirname(os.path.abspath(snakefilename))
-repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; [ -z "$( git status --porcelain )" ] && exit 0 || exit 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; [ -z "$( git status --porcelain )" ] && exit 0 || exit 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True, capture_output=True)
 if repos_state.returncode != 0:
         print("\nYour snakefile is modified relative to the git repos", file=sys.stderr)
         print("Either undo your changes, or commit them", file=sys.stderr)
@@ -22,7 +22,7 @@ if repos_state.returncode != 0:
 
 # set code_base directory and retrieve hash of git commit
 CODE_BASE = os.path.join(repospath, "code")
-repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; git log --pretty=format:"%H" -n 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; git log --pretty=format:"%H" -n 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True, capture_output=True)
 GIT_COMMIT_HASH = repos_state.stdout
 
 # print pipeline VERSION to stdout
