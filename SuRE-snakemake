@@ -10,19 +10,26 @@ import fnmatch
 import inspect
 import subprocess
 
+# check if snakefile originates from a 'clean' git repos
 snakefilename = inspect.getframeinfo(inspect.currentframe()).filename
 repospath = os.path.dirname(os.path.abspath(snakefilename))
 repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; [ -z "$( git status --porcelain )" ] && exit 0 || exit 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True)
 if repos_state.returncode != 0:
-        print("Your snakefile is modified relative to the git repos")
-        print("Either undo your changes, or commit them")
-        print("Aborting")
+        print("\nYour snakefile is modified relative to the git repos", file=sys.stderr)
+        print("Either undo your changes, or commit them", file=sys.stderr)
+        print("Aborting\n\n", file=sys.stderr)
+        sys.exit("")
 
-# check if snakefile originates from a 'clean' git repos
 # set code_base directory and retrieve hash of git commit
 CODE_BASE = os.path.join(repospath, "code")
 repos_state = subprocess.run('pwd; cd '+repospath+'; pwd; git log --pretty=format:"%H" -n 1', stdout=subprocess.PIPE, shell=True, universal_newlines=True)
 GIT_COMMIT_HASH = repos_state.stdout
+
+# print pipeline VERSION to stdout
+VERSIONFILE = os.path.join(CODE_BASE, "../", "VERSION")
+with open(VERSIONFILE, 'r') as myfile:
+    VERSION=myfile.read().replace('\n', '')
+print ("SuRE-seq pipeline version: ", VERSION, "\n", "git commit hash: ", GIT_COMMIT_HASH, "\n\n")
 
 
 # copy all parameters (for readability)
@@ -43,7 +50,6 @@ iPCR_merge_script       = os.path.join(CODE_BASE, "iPCR-merge-bedpe-Filter-BC-mu
 split_bedpe_script      = os.path.join(CODE_BASE, "split-bedpe2chr.sh")
 merge_all_script        = os.path.join(CODE_BASE, "merge-iPCR-cDNA-plDNA.bash")
 add_homozygous_baseIdentities_script = os.path.join(CODE_BASE, "add-homozygous-baseIndentities.bash")
-VERSIONFILE             = os.path.join(CODE_BASE, "../", "VERSION")
 
 ADPT_SEQ                = config["ADPT_SEQ"]
 ADPTR_IPCR_FORW_SEQ     = config["ADPTR_IPCR_FORW_SEQ"]
@@ -60,11 +66,6 @@ CHR_ALL                 = ["chr"+str(i) for i in range(1,23)]+['chrX','chrY','ch
 CHR_AVAIL=list(compress(CHR_ALL, [os.path.isfile(f) for f in expand(os.path.join(config["OUTDIR"], config["iPCR"]["OUTDIR"], "bed-annot", "iPCR-combined-bedpe_{c}_SNPannot.txt.gz"), c=CHR_ALL)]))
 #print("CHR_TARGET=")
 #print(CHR_TARGET)
-
-# print pipeline VERSION to stdout
-with open(VERSIONFILE, 'r') as myfile:
-    VERSION=myfile.read().replace('\n', '')
-print ("SuRE-seq pipeline version: ", VERSION, "\n", "git commit hash: ", GIT_COMMIT_HASH, "\n\n")
 
 cDNA_SAMPLES=config["cDNA"]["SAMPLES"]
 if cDNA_SAMPLES is None:
@@ -212,7 +213,7 @@ rule iPCR_splitBAM:
   conda: CONDA_ENV
   shell:
     "{SPLITBAM} --in {input} --out '{params.noext}'; "
-    "for f in '{params.noext}'chr*.bam; do {SAMTOOLS} index $f; done ; "
+    "for f in '{params.noext}'*.bam; do {SAMTOOLS} index $f; done ; "
 
 rule iPCR_WASP_sort_and_index_bam:
   input:
