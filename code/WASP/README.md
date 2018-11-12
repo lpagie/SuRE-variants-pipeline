@@ -1,3 +1,9 @@
+# This is a copy of another repos: <https://github.com/bmvdgeijn/WASP>
+
+Cloned from commit
+<https://github.com/bmvdgeijn/WASP/commit/5a52185a8ccec960a5096af8a688f79440757ac0>.
+See also top level readme for more details.
+
 # WASP: allele-specific pipeline for unbiased read mapping and molecular QTL discovery
 
 ## Introduction
