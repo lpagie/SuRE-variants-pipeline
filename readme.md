@@ -19,6 +19,20 @@ WASP-repos
 unpacked it into `code/WASP`, and added it to this repos. i
 
 
+# DISCLAIMER ALERT!!!
+
+This collection of scripts is far from a production level set of software.
+Developed over a few years it got the job done. Many times along the way I lost
+my focus wrt proper documentation and other proper-coding methods. Also, as a
+pipeline build over the years with increasing required functionalities, etc, it
+is far from a computational optimal pipeline as well. For instance, I wrote my
+first python code in this pipeline.
+
+As a result it is hardly to be expected that this pipeline will directly
+function as intended after cloning the repos. I will do my best though to
+assist in case you want to use it for your work.
+
+
 # Download and install
 
 In the process of developing this pipeline I included the WASP repos. This
